@@ -21,6 +21,15 @@
   --r:14px;
   color-scheme:light;
 }
+.site-qr{display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center;margin:26px auto 4px;padding:16px 20px;max-width:620px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);text-align:left}
+.site-qr-code{background:#fff;padding:10px;border-radius:10px;line-height:0;flex:none}
+.site-qr-code img,.site-qr-code canvas{display:block;width:150px;height:150px}
+.site-qr-info{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1 1 220px}
+.site-qr-info b{font-family:var(--font-display);font-size:1.08rem;color:var(--ink)}
+.site-qr-info span{color:var(--muted);font-size:.95rem}
+.site-qr-info code{font-size:.85rem;color:var(--accent);word-break:break-all}
+.site-qr-info .btn{align-self:flex-start}
+
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --desk:#11181d; --paper:#1a242b; --ink:#e5edf1; --muted:#97a7b0; --line:#2c3a43;
   --accent:#3cc2a9; --accent-hover:#55d2ba; --accent-ink:#0b1a17; --accent-soft:#1d3b36;
@@ -336,7 +345,7 @@ a{color:var(--accent)}
   window.EdgeTTSModule = { EdgeTTS };
   window.dispatchEvent(new CustomEvent('edgetts-ready'));
 </script>
-<!-- erh-build: 2026-11-01 詞庫逐詞報讀 -->
+<!-- erh-build: 2026-11-01 首頁網站 QR Code -->
 </head>
 <body>
 
@@ -429,6 +438,17 @@ a{color:var(--accent)}
       <div class="tip-card">
         <b>⌨️ 支援拖放檔案與貼上截圖</b>
         可直接把 PDF／圖片<b>拖曳進視窗</b>，或截圖後按 <kbd>Ctrl</kbd>+<kbd>V</kbd> 直接貼上考卷畫面。
+      </div>
+    </div>
+
+    <!-- 首頁底部：本網站 QR Code（平板掃描即可打開評量報讀小幫手） -->
+    <div class="site-qr" id="siteQrCard">
+      <div class="site-qr-code" id="siteQrBox" aria-label="評量報讀小幫手網址 QR Code"></div>
+      <div class="site-qr-info">
+        <b>📱 掃描 QR Code 打開「評量報讀小幫手」</b>
+        <span>平板或手機用相機掃描，就能直接打開這個網站。</span>
+        <code id="siteQrUrl"></code>
+        <button class="btn sm" id="bSiteQrSave" type="button">⬇️ 下載 QR Code 圖片</button>
       </div>
     </div>
   </section>
@@ -2059,6 +2079,40 @@ function getBaseShareUrl(){
   }
   return location.origin + location.pathname;
 }
+
+// 首頁底部：本網站 QR Code（若是在電腦本機開啟檔案，就改用正式網址）
+const SITE_PUBLIC_URL = 'https://liniris1023.github.io/exam-reader-helper/';
+function renderSiteQr(){
+  const box = $('siteQrBox');
+  if(!box || typeof QRCode === 'undefined') return;
+  const base = getBaseShareUrl();
+  const url = /^https?:/.test(base) && !/localhost|127\.0\.0\.1/.test(base) ? base : SITE_PUBLIC_URL;
+  box.innerHTML = '';
+  try{ new QRCode(box, { text:url, width:300, height:300, correctLevel: QRCode.CorrectLevel.M }); }catch(e){ return; }
+  $('siteQrUrl').textContent = url;
+}
+$('bSiteQrSave').addEventListener('click', () => {
+  const box = $('siteQrBox');
+  const cvs = box.querySelector('canvas'), img = box.querySelector('img');
+  const src = (img && img.src && img.src.startsWith('data:')) ? img.src : (cvs ? cvs.toDataURL('image/png') : '');
+  if(!src){ toast('QR Code 尚未產生，請稍候再試'); return; }
+  // 加上白邊與網站名稱，方便列印張貼
+  const pic = new Image();
+  pic.onload = () => {
+    const pad = 40, W = pic.width + pad*2, H = pic.height + pad*2 + 56;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0,0,W,H);
+    g.drawImage(pic, pad, pad);
+    g.fillStyle = '#0f7b6c'; g.font = 'bold 28px sans-serif'; g.textAlign = 'center';
+    g.fillText('評量報讀小幫手', W/2, H - 34);
+    const a = document.createElement('a');
+    a.href = c.toDataURL('image/png'); a.download = '評量報讀小幫手_QRCode.png';
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  pic.src = src;
+});
+setTimeout(renderSiteQr, 0);
 
 function buildStudentExamUrl(exam){
   const p = new URLSearchParams();
