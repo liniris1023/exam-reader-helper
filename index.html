@@ -345,7 +345,7 @@ a{color:var(--accent)}
   window.EdgeTTSModule = { EdgeTTS };
   window.dispatchEvent(new CustomEvent('edgetts-ready'));
 </script>
-<!-- erh-build: 2026-11-01 不報讀答案 -->
+<!-- erh-build: 2026-11-01 只報讀不作答 -->
 </head>
 <body>
 
@@ -981,6 +981,8 @@ function findInlineSplitOffsets(str){
     const nextChar = str[idx + m[0].length] || '';
     const prev2 = str.slice(Math.max(0, idx - 2), idx);
     if(/[、～~至到和與及第]/.test(prevChar) || /^[、～~至到和與及]/.test(nextChar)) continue;
+    // 等號或運算符號後面的括號是作答欄（如「68×25＝（　） 2.…」），不是下一題的開頭
+    if(/[=＝×✕÷＋+－−\-]\s*$/.test(str.slice(0, idx))) continue;
     // 若是單純題號如 "2. 妹妹"，前面必須是句末標點或空白
     if(/^[1-9１-９]/.test(m[0]) && !/[（(【\[〔□]/.test(m[0]) && !/[\s　。！？!?；）」』】\]]/.test(prevChar)) continue;
     // 若是單純 (1)/(A) 開頭，前面需為空白或標點（避免切斷算式或數字）
@@ -1003,6 +1005,13 @@ function findInlineSplitOffsets(str){
       const cutPos = m.index + m[0].length;
       if(cutPos > 1 && cutPos < str.length - 1) cuts.add(cutPos);
     }
+  }
+
+  // 規則 D：同一行並列的計算題「1. 68×25＝（　） 2. 1528×13＝（　）」→ 在第二題題號前切開
+  const reMathNum = /(?:[)）□]|＿{2,})\s*([1-9１-９][0-9０-９]?\s*[.．、]\s*)(?=[0-9０-９(（])/g;
+  while((m = reMathNum.exec(str)) !== null){
+    const cutPos = m.index + m[0].length - m[1].length;
+    if(cutPos > 1) cuts.add(cutPos);
   }
 
   // 規則 C：直式選詞填寫（無題號）一欄兩題時，在「。」後面接漢字處切開（前後都至少 4 個字才切）
@@ -1852,6 +1861,8 @@ async function analyze(i, myRender, forceReOcr=false){
 
 /* ================= 繪製小題框與教師校對清單 ================= */
 function drawBlocks(){
+  // 本網站只負責「照卷面報讀」：任何來源的小題框（AI 辨識、舊的校對紀錄、考卷櫃、派卷）都先移除已算出或已填入的答案
+  (S.blocks || []).forEach(b => { if(b && b.text) b.text = stripAnswers(b.text); });
   ov.querySelectorAll('.blk').forEach(n => n.remove());
   const W = cv.width || 1, H = cv.height || 1;
   const list = $('textList'); list.innerHTML = '';
@@ -2112,6 +2123,7 @@ async function geminiRead(canvas, isCrop){
       : '每一小題（題號、題幹、國語改錯題每一題、子題）各自獨立成一個項目；選詞填寫的詞庫每個語詞各自一項、每一題含填空括號前後文字合成一項；不可跨越大題分隔線合併；大題說明自成一項；頁首姓名座號欄省略。');
 
   const prompt = `這是台灣中小學考卷${isCrop?'中被框選的一小塊區域':'的一頁'}，要用來報讀給有特教需求的學生聽。${dirHint}
+【最重要的規則】你只是「照抄卷面文字」的報讀工具，絕對不可以解題、計算或填入任何答案！計算題（例如「68×25＝（　）」）只能照原樣輸出題目，括號是空白就輸出「（　）」，絕對不可以把算出來的數字寫進括號或等號後面；填充題、選擇題也一樣不可以作答。
 請找出圖中要唸的文字，嚴格依照正確閱讀順序輸出：
 1. 橫式文字：若有左右兩欄，先讀完左欄再讀右欄；每欄由左到右、由上到下。直式文字（國語直排）：每行由上到下，行與行由右到左；上下多個大題先讀上面再讀下面。
 2. ${granRule}
@@ -2899,7 +2911,7 @@ function renderSubtitle(b, bIdx, activeRawChunk){
   $('subTag').textContent = b.temp ? '框選朗讀' : ('第 ' + (bIdx + 1) + ' 項');
   const box = $('subText');
   box.dataset.sz = String(S.subSize);
-  const full = cleanText(b.text);
+  const full = stripAnswers(cleanText(b.text));
   if(activeRawChunk && full.includes(activeRawChunk)){
     const pos = full.indexOf(activeRawChunk);
     box.innerHTML = '';
