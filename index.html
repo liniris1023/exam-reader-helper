@@ -329,6 +329,13 @@ a{color:var(--accent)}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+<!-- Microsoft Edge TTS 自然台灣語音（固定曉臻 zh-TW-HsiaoChenNeural） -->
+<script type="module">
+  import { EdgeTTS } from 'https://cdn.jsdelivr.net/npm/edge-tts-universal/dist/browser.js';
+  window.EdgeTTSModule = { EdgeTTS };
+  window.dispatchEvent(new CustomEvent('edgetts-ready'));
+</script>
 </head>
 <body>
 
@@ -509,6 +516,7 @@ a{color:var(--accent)}
   </div>
 </nav>
 
+<audio id="ttsAudio" preload="auto" hidden></audio>
 <input type="file" id="fOpen" accept="application/pdf,image/*" multiple hidden>
 <input type="file" id="fCam" accept="image/*" capture="environment" hidden>
 <input type="file" id="fJson" accept="application/json,.json" hidden>
@@ -781,6 +789,8 @@ function cleanText(t){
   s = s.replace(reCjkGap,'$1').replace(reCjkGap,'$1');
   s = s.replace(/[\(（\[][\s]*[|｜lI丨!][\s]*[\)）\]]/g, '(1)');
   s = s.replace(/(在|於|填入|寫在)\s*口\s*(裡|中|內)/g, '$1□$2');
+  // 空白填答括號統一呈現為「（　）」
+  s = s.replace(/（\s*）/g, '（　）');
   return s.replace(/\s{2,}/g,' ').trim();
 }
 function joinText(a, b){
@@ -797,7 +807,7 @@ function median(arr, fb=16){
 }
 
 /* ================= 編輯紀錄持久化 ================= */
-function editStorageKey(pageIdx){ return 'erh_ed_' + S.docId + '_p' + pageIdx + '_' + S.dir + '_' + (S.fineSplit?1:0); }
+function editStorageKey(pageIdx){ return 'erh_ed_v5_' + S.docId + '_p' + pageIdx + '_' + S.dir + '_' + (S.fineSplit?1:0); }
 function savePageEdits(){
   if(!S.pages.length) return;
   const slim = S.blocks.map(b => ({x:Math.round(b.x), y:Math.round(b.y), w:Math.round(b.w), h:Math.round(b.h), text:b.text, dir:b.dir||'h'}));
@@ -840,8 +850,16 @@ function overlap1d(a0,a1,b0,b1){ return Math.max(0, Math.min(a1,b1) - Math.max(a
  *    - 題號在前：「1.（　）… 2.（　）…」或「１（　）… ２（　）…」
  *    - 括號在句尾：「今天天氣真公圓。（　） 妹妹心裡很著急。（　）」
  */
+// 直式「選詞填寫」區段：同一欄若有兩題（句號後接下一句），在句號後切開（僅在偵測到選詞填寫大題時啟用，避免切斷閱讀測驗長段落）
+let VERT_SENT_SPLIT = false;
+const WORD_FILL_HEAD = /選詞填寫|選詞|填入適當|選出適當的詞/;
+// 選詞填寫的詞庫列（如「豐饒、風靡、饗宴、拱手讓人」：兩字到四字一組、無句號），整列當一個框
+const WORD_BANK_RE = /^(?:[\u4e00-\u9fff]{2,4}[、\s　]+){2,}[\u4e00-\u9fff]{2,4}$/;
+function isWordBank(text){ return WORD_BANK_RE.test((text || '').trim()); }
+
 function findInlineSplitOffsets(str){
   if(!S.fineSplit || !str || str.length < 4) return [];
+  if(isWordBank(str)) return [];
   const cuts = new Set();
   const startsWithBlank = STARTS_BLANK_BRACKET.test(str);
 
@@ -876,6 +894,17 @@ function findInlineSplitOffsets(str){
     while((m = reTailBlank.exec(str)) !== null){
       const cutPos = m.index + m[0].length;
       if(cutPos > 1 && cutPos < str.length - 1) cuts.add(cutPos);
+    }
+  }
+
+  // 規則 C：直式選詞填寫（無題號）一欄兩題時，在「。」後面接漢字處切開（前後都至少 4 個字才切）
+  if(VERT_SENT_SPLIT){
+    const reSent = /[。！？][」』]?(?=[\u4e00-\u9fff「『])/g;
+    while((m = reSent.exec(str)) !== null){
+      const cutPos = m.index + m[0].length;
+      const before = str.slice(0, cutPos).replace(/[^\u4e00-\u9fff]/g,'').length;
+      const after = str.slice(cutPos).replace(/[^\u4e00-\u9fff]/g,'').length;
+      if(before >= 4 && after >= 4) cuts.add(cutPos);
     }
   }
 
@@ -932,47 +961,127 @@ function filterPdfRubyZhuyin(items){
   if(!S.skipZy || items.length < 3) return items;
   const kanjis = items.filter(it => /[\u4e00-\u9fff]/.test(it.str));
   if(kanjis.length < 2) return items;
-  const medSize = Math.max(median(kanjis.map(k => k.w), 16), median(kanjis.map(k => k.h), 16));
+  const medW = median(kanjis.map(k => k.w), 16);
+  const medH = median(kanjis.map(k => k.h), 16);
+  const medMin = Math.min(medW, medH);
+  const medMax = Math.max(medW, medH);
   return items.filter(it => {
     if(!ZHUYIN_ONLY_RE.test(it.str)) return true;
-    const sz = Math.max(it.w, it.h);
-    if(sz < medSize * 0.72){
+    // 直排破音字或疊合注音常為「窄而高」(it.w 小、it.h 等於字高)，故取 min(w,h) 判斷小注音！
+    const minDim = Math.min(it.w, it.h);
+    if(minDim < medMin * 0.78){
       const cx = it.x + it.w/2, cy = it.y + it.h/2;
-      const nearKanji = kanjis.some(k => Math.abs(cx - (k.x+k.w/2)) <= medSize * 1.35 && Math.abs(cy - (k.y+k.h/2)) <= medSize * 1.1);
+      const nearKanji = kanjis.some(k => Math.abs(cx - (k.x+k.w/2)) <= medMax * 1.48 && Math.abs(cy - (k.y+k.h/2)) <= medMax * 1.25);
       if(nearKanji) return false;
     }
     return true;
   });
 }
 
+// 掃描考卷畫布上的橫向長分隔線（大題上下排分界線），防止上排題目跨越橫線吃進下排題目！
+function detectHorizontalRules(canvas){
+  if(!canvas || canvas.width < 100 || canvas.height < 100) return [];
+  try{
+    const W = canvas.width, H = canvas.height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const data = ctx.getImageData(0, 0, W, H).data;
+    const xStart = Math.floor(W * 0.06), xEnd = Math.floor(W * 0.94);
+    const stepX = 3;
+    const minRunPx = W * 0.26;
+    const rawYs = [];
+    for(let y = Math.floor(H * 0.06); y < Math.floor(H * 0.95); y++){
+      let maxRun = 0, curRun = 0, gapTol = 0;
+      const rowBase = y * W * 4;
+      for(let x = xStart; x < xEnd; x += stepX){
+        const idx = rowBase + x * 4;
+        const lum = (data[idx]*77 + data[idx+1]*150 + data[idx+2]*29) >> 8;
+        if(lum < 185){
+          curRun += stepX; gapTol = 0;
+          if(curRun > maxRun) maxRun = curRun;
+        } else {
+          gapTol += stepX;
+          if(gapTol > 12) curRun = 0;
+          else curRun += stepX;
+        }
+      }
+      if(maxRun >= minRunPx) rawYs.push(y);
+    }
+    const rules = [];
+    let gStart = -1, gPrev = -1;
+    for(const y of rawYs){
+      if(gStart < 0){ gStart = gPrev = y; }
+      else if(y - gPrev <= 3){ gPrev = y; }
+      else {
+        if(gPrev - gStart <= 12) rules.push(Math.round((gStart + gPrev) / 2));
+        gStart = gPrev = y;
+      }
+    }
+    if(gStart >= 0 && gPrev - gStart <= 12) rules.push(Math.round((gStart + gPrev) / 2));
+    return rules;
+  }catch(e){ return []; }
+}
+
+function crossesHorizontalRule(yTop, yBottom, rules){
+  if(!rules || !rules.length) return false;
+  for(const ry of rules){
+    if(yTop < ry - 3 && yBottom > ry + 3) return true;
+  }
+  return false;
+}
+
 // 依據逐字座標將一條 PDF 行精準切分為多個小題／選項框（座標 100% 貼合每個選項！）
-function splitPdfItemsLine(sortedItems, dir){
+function splitPdfItemsLine(sortedItems, dir, extraMeta=null){
   if(!sortedItems.length) return [];
   let fullStr = '';
   const charToItemIdx = [];
-  let prevRight = null;
+  let prevIt = null;
 
   for(let idx = 0; idx < sortedItems.length; idx++){
     const it = sortedItems[idx];
-    if(dir === 'h' && prevRight !== null && it.x - prevRight > Math.max(2.5, it.h*0.32)){
-      // 明顯水平間距時補一個空白讓細分器能辨識欄位或並列小題間距
-      if(/[A-Za-z0-9.,!?:;)）]$/.test(fullStr) || /^[（(①-⑳❶-❿⑴-⑽A-Da-d0-9]/.test(it.str)){
-        fullStr += ' ';
+    // 直式詞庫（如「豐饒 風靡 饗宴」）同一個文字片段內的空白改成頓號，避免被 cleanText 吃掉而黏成一串
+    let normStr = normVertPunct(it.str);
+    if(dir === 'v') normStr = normStr.replace(/([\u4e00-\u9fff])[\s　]+(?=[\u4e00-\u9fff])/g, '$1、');
+    if(prevIt){
+      const gap = dir === 'v' ? (it.y - (prevIt.y + prevIt.h)) : (it.x - (prevIt.x + prevIt.w));
+      // 直式文字片段是一整串（高度＝字數×字高），字的大小要看寬度
+      const unit = dir === 'v' ? Math.max(8, Math.min(it.w, it.h)) : Math.max(8, it.h);
+      const prevNorm = normVertPunct(prevIt.str);
+      // 若為句子內填空大括號「（　　　　）」，在開括號與閉括號間補全形空白，確保呈現「（　）」並唸出「括號」
+      if(/[（(【\[〔｛\{]$/.test(prevNorm) && /^[)）】\]〕｝\}]/.test(normStr) && gap > unit * 0.25){
+        fullStr += '　';
         charToItemIdx.push(idx);
+      } else if(dir === 'h' && gap > Math.max(2.5, unit * 0.32)){
+        if(/[A-Za-z0-9.,!?:;)）。！？]$/.test(fullStr) || /^[（(①-⑳❶-❿⑴-⑽A-Da-d0-9]/.test(normStr)){
+          fullStr += ' ';
+          charToItemIdx.push(idx);
+        }
+      } else if(dir === 'v' && /[（(]$/.test(prevNorm) && !/^[)）]/.test(normStr) && gap > unit * 1.5){
+        // 直式長填空括號只抓到開括號、閉括號沒有文字層時，自動補成「（　）」
+        fullStr += '　）';
+        charToItemIdx.push(idx, idx);
+      } else if(dir === 'v' && gap > unit * 1.2 && /[\u4e00-\u9fff]$/.test(fullStr) && /^[\u4e00-\u9fff]/.test(normStr)){
+        // 直式兩個漢字之間有明顯空隔（詞庫的詞與詞之間），補頓號讓語音停頓
+        fullStr += '、';
+        charToItemIdx.push(idx);
+      } else if(dir === 'v' && gap > unit * 0.42){
+        if(/[。！？!?；)）]$/.test(fullStr) || /^[（(①-⑳❶-❿⑴-⑽A-Da-d0-9０-９]/.test(normStr)){
+          fullStr += ' ';
+          charToItemIdx.push(idx);
+        }
       }
     }
-    for(const ch of it.str){
+    for(const ch of normStr){
       fullStr += ch;
       charToItemIdx.push(idx);
     }
-    prevRight = it.x + it.w;
+    prevIt = it;
   }
 
   const cuts = findInlineSplitOffsets(fullStr);
   if(!cuts.length){
     let box = {x:sortedItems[0].x, y:sortedItems[0].y, w:sortedItems[0].w, h:sortedItems[0].h};
     for(let k=1;k<sortedItems.length;k++) box = union(box, sortedItems[k]);
-    return [{...box, text: cleanText(fullStr)}];
+    return [{...box, text: cleanText(fullStr), ...(extraMeta||{})}];
   }
 
   const pts = [0, ...cuts, fullStr.length];
@@ -989,7 +1098,7 @@ function splitPdfItemsLine(sortedItems, dir){
     if(!sliceItems.length || !meaningful(subTxt)) continue;
     let box = {x:sliceItems[0].x, y:sliceItems[0].y, w:sliceItems[0].w, h:sliceItems[0].h};
     for(let k=1;k<sliceItems.length;k++) box = union(box, sliceItems[k]);
-    out.push({...box, text: subTxt});
+    out.push({...box, text: subTxt, ...(extraMeta||{})});
   }
   return out;
 }
@@ -1096,9 +1205,66 @@ function updateLayoutChip(dir, twoCol){
   else chip.textContent = twoCol ? '↔ 橫式雙欄（左欄→右欄）' : '↔ 橫式排列（左→右）';
 }
 
-function orderAndMerge(rawLines, dir, pageW=0){
+// 直式：同一欄被長填空括號或空白切成上下兩段時，判斷是否為同一題
+function canJoinVertSegments(upper, lower, yTop, yBottom, rules){
+  const a = (upper || '').trim(), b = (lower || '').trim();
+  if(!a || !b) return false;
+  if(crossesHorizontalRule(yTop - 4, yBottom + 4, rules)) return false;
+  if(/[。！？!?：:][」』）)]?\s*$/.test(a)) return false;
+  if(ENDS_COMPLETE_ITEM.test(a) || SECTION_HEAD.test(a) || isWordBank(a)) return false;
+  if(QNUM.test(b) || SECTION_HEAD.test(b) || isWordBank(b)) return false;
+  if(isStandaloneOptionOrShortSub(b)) return false;
+  return true;
+}
+function joinVertSegments(a, b, gap, unit){
+  const A = a.replace(/\s+$/,''), B = b.replace(/^\s+/,'');
+  const opens = (A.match(/[（(]/g) || []).length, closes = (A.match(/[)）]/g) || []).length;
+  if(/[（(]$/.test(A)) return A + '　' + (/^[)）]/.test(B) ? '' : '）') + B;
+  if(opens > closes) return A + (/^[)）]/.test(B) ? '' : '　）') + B;
+  if(/^[)）]/.test(B)) return A + '（　' + B;
+  // 中間有長空白（填空括號是畫出來的線、沒有文字層），且下段以標點開頭 → 補「（　）」
+  if(gap > unit * 1.5 && /^[，、。！？；]/.test(B)) return A + '（　）' + B;
+  return joinText(A, B);
+}
+function mergeVerticalTrackSegments(lines, rules){
+  if(lines.length < 2) return lines;
+  const avgW = median(lines.map(l => l.w), 20);
+  const byY = [...lines].sort((a,b) => (a.y - b.y) || ((b.x+b.w/2) - (a.x+a.w/2)));
+  const used = new Set();
+  const out = [];
+  for(const a of byY){
+    if(used.has(a)) continue;
+    used.add(a);
+    let cur = {...a};
+    for(;;){
+      const cx = cur.x + cur.w/2;
+      let best = null, bestGap = Infinity;
+      for(const b of byY){
+        if(used.has(b)) continue;
+        if(Math.abs((b.x + b.w/2) - cx) > 0.5 * Math.max(avgW * 0.8, Math.min(cur.w, b.w))) continue;
+        const gap = b.y - (cur.y + cur.h);
+        if(gap < -0.3 * avgW || gap > 9 * avgW) continue;
+        if(gap < bestGap){ best = b; bestGap = gap; }
+      }
+      if(!best || !canJoinVertSegments(cur.text, best.text, cur.y + cur.h, best.y, rules)) break;
+      used.add(best);
+      const txt = joinVertSegments(cur.text, best.text, bestGap, avgW);
+      Object.assign(cur, union(cur, best));
+      cur.text = txt;
+    }
+    out.push(cur);
+  }
+  return out;
+}
+
+function orderAndMerge(rawLines, dir, pageW=0, rules=[]){
+  if(dir === 'v'){
+    if(rawLines.some(l => l && WORD_FILL_HEAD.test(l.text || ''))) VERT_SENT_SPLIT = true;
+  } else {
+    VERT_SENT_SPLIT = false;
+  }
   // 先將每行內的並列小題或選擇題選項拆細
-  const lines = [];
+  let lines = [];
   for(const l of rawLines){
     if(!l.text || !meaningful(l.text)) continue;
     lines.push(...splitLineBlockByInlineMarkers(l, dir));
@@ -1107,6 +1273,8 @@ function orderAndMerge(rawLines, dir, pageW=0){
 
   if(dir === 'v'){
     updateLayoutChip('v', false);
+    // 同一欄上下兩段（被長填空括號切開）先接回同一題；跨越大題分隔線則不接
+    lines = mergeVerticalTrackSegments(lines, rules);
     const cols = [...lines].sort((a,b) => ((b.x+b.w/2) - (a.x+a.w/2)) || (a.y - b.y));
     const bands = [];
     for(const c of cols){
@@ -1128,7 +1296,13 @@ function orderAndMerge(rawLines, dir, pageW=0){
           const sameCol = Math.abs((c.x+c.w/2) - (cur.last.x+cur.last.w/2)) <= avgW * 0.5;
           const gap = cur.last.x - (c.x + c.w);
           const sameTop = Math.abs(c.y - cur.last.y) < Math.max(2.2*avgW, 0.25*cur.last.h);
-          if(!sameCol && gap < 0.95*avgW && sameTop && !QNUM.test(c.text) && !ENDS_COMPLETE_ITEM.test(cur.text) && !isCompleteSectionHead(cur.text) && !isFinishedUnnumberedSentence(cur.text) && !isStandaloneOptionOrShortSub(cur.text)){
+          const ruleBetween = crossesHorizontalRule(Math.min(cur.y, c.y) + 2, Math.max(cur.y + cur.h, c.y + c.h) - 2, rules) && Math.abs(c.y - cur.last.y) > avgW;
+          // 詞庫列：相鄰兩欄都是詞庫就合成一框；詞庫不可與題目互相合併
+          const bankA = isWordBank(cur.text), bankB = isWordBank(c.text);
+          if(bankA && bankB && !sameCol && gap < 1.6*avgW){
+            Object.assign(cur, union(cur, c)); cur.text = cur.text + '、' + c.text; cur.last = c; continue;
+          }
+          if(!sameCol && gap < 0.95*avgW && sameTop && !ruleBetween && !bankA && !bankB && !QNUM.test(c.text) && !ENDS_COMPLETE_ITEM.test(cur.text) && !isCompleteSectionHead(cur.text) && !isFinishedUnnumberedSentence(cur.text) && !isStandaloneOptionOrShortSub(cur.text)){
             Object.assign(cur, union(cur, c)); cur.text = joinText(cur.text, c.text); cur.last = c; continue;
           }
           out.push(cur);
@@ -1142,14 +1316,17 @@ function orderAndMerge(rawLines, dir, pageW=0){
   return orderHorizontalWithColumns(lines, pageW);
 }
 
-function itemsToLines(rawItems, dir){
+function itemsToLines(rawItems, dir, rules=[]){
   let items = deduplicatePdfItems(rawItems);
   items = filterPdfRubyZhuyin(items);
   if(!items.length) return [];
+  VERT_SENT_SPLIT = dir === 'v' && WORD_FILL_HEAD.test(items.map(i => i.str).join(''));
 
   if(dir === 'v'){
     const medW = median(items.map(i => i.w), 16);
     const medH = median(items.map(i => i.h), 16);
+    // 直式片段常是一整串文字，高度會隨字數變長；用「字寬」當作一個字的大小來判斷間距
+    const charSz = median(items.map(i => Math.min(i.w, i.h)), 16);
     // 先依 X 軸聚類成縱向軌道，再於每個軌道內由上而下依垂直間距分段（避免上下不同大題或改錯題黏合）
     const tracks = [];
     for(const it of [...items].sort((a,b) => (b.x+b.w/2) - (a.x+a.w/2))){
@@ -1161,13 +1338,25 @@ function itemsToLines(rawItems, dir){
     }
     const out = [];
     for(const tr of tracks){
-      tr.items.sort((a,b) => Math.abs(a.y - b.y) <= medH * 0.35 ? (a.x - b.x) : (a.y - b.y));
+      tr.items.sort((a,b) => Math.abs(a.y - b.y) <= charSz * 0.35 ? (a.x - b.x) : (a.y - b.y));
       let seg = [];
       for(const it of tr.items){
         if(seg.length){
           const prev = seg[seg.length - 1];
           const vGap = it.y - (prev.y + prev.h);
-          if(vGap > Math.max(medH * 1.9, 28)){
+          let cut = false;
+          if(crossesHorizontalRule(prev.y + prev.h * 0.5, it.y + it.h * 0.5, rules)){
+            // 跨越大題分隔橫線：一定切開，避免上排題目吃進下排題目
+            cut = true;
+          } else if(vGap > Math.max(charSz * 1.9, 28)){
+            // 直式填空長括號「（　　　　）」中間是空的：段內括號未閉合（或結尾是開括號）時不切，讓同一題前後文字留在同一框
+            const segStr = seg.map(x => normVertPunct(x.str)).join('');
+            const opens = (segStr.match(/[（(]/g) || []).length;
+            const closes = (segStr.match(/[)）]/g) || []).length;
+            const inBlank = /[（(]\s*$/.test(segStr) || opens > closes;
+            cut = !(inBlank && vGap < Math.max(charSz * 14, 220));
+          }
+          if(cut){
             out.push(...splitPdfItemsLine(seg, 'v'));
             seg = [];
           }
@@ -1490,7 +1679,8 @@ async function analyze(i, myRender, forceReOcr=false){
     if(items){
       pg.items = items;
       const d = S.dir === 'auto' ? pickDirFromItems(items) : S.dir;
-      blocks = orderAndMerge(itemsToLines(items, d), d, cv.width);
+      const rules = d === 'v' ? detectHorizontalRules(cv) : [];
+      blocks = orderAndMerge(itemsToLines(items, d, rules), d, cv.width, rules);
     }
   }
   if(!blocks){
@@ -1579,6 +1769,8 @@ function drawBlocks(){
     b.li = li;
     list.appendChild(li);
   });
+  // 背景預先合成前幾題的自然語音
+  setTimeout(() => { try{ prefetchPageBlocks(); }catch(e){} }, 400);
 }
 
 function mkMiniBtn(label, title, onClick, extraCls='', instantOnDown=false){
@@ -1754,9 +1946,9 @@ async function tessPage(canvas, dir){
     const v = await tessRun(canvas, 'v', 3);
     const d = score(v) > score(h)*1.08 ? 'v' : 'h';
     toast(d==='v' ? '自動判斷：國語直式排列' : '自動判斷：橫式排列');
-    return orderAndMerge(d==='v' ? v : h, d, canvas.width);
+    return orderAndMerge(d==='v' ? v : h, d, canvas.width, d==='v' ? detectHorizontalRules(canvas) : []);
   }
-  return orderAndMerge(await tessRun(canvas, dir, 3), dir, canvas.width);
+  return orderAndMerge(await tessRun(canvas, dir, 3), dir, canvas.width, dir==='v' ? detectHorizontalRules(canvas) : []);
 }
 
 /* ================= Gemini Vision AI 極細小題與選項辨識 ================= */
@@ -1767,8 +1959,8 @@ async function geminiRead(canvas, isCrop){
   const granRule = isCrop
     ? '這是框選區域，請把全部文字照順序合成「一個」項目即可。'
     : (S.fineSplit
-      ? '【極重要：每一小題、國語改錯題每一題、與每個選項都要拆開獨立報讀！】大題說明標題自成一項；每一題的「題幹（含題號與開頭作答括號）」獨立一項；國語「改錯字」大題中的每一題（無論是單括號「（　）1.…」、雙括號「（　）（　）１…」、無題號僅括號「（　）句子…」、句尾括號「句子。（　）」、或表格框線內的每一句）都必須各自拆成獨立的一個項目，絕不可把多題改錯字合併！題組底下的每一個子題（如 (1)、(2)、⑴、⑵、填充小題、計算小題）各自獨立一項；選擇題的「每一個選項（如 ①…、②…、③…、④… 或 (A)…、(B)…）」也請務必各自拆成獨立的一個項目並給出該選項精準的 box_2d 座標！頁首的班級姓名座號欄請省略。'
-      : '每一小題（題號、題幹、國語改錯題每一題、子題）各自獨立成一個項目；大題說明自成一項；頁首姓名座號欄省略。');
+      ? '【極重要：每一小題、國語改錯題每一題、與每個選項都要拆開獨立報讀！】大題說明標題自成一項；每一題的「題幹（含題號與開頭作答括號）」獨立一項；國語「改錯字」大題中的每一題（無論是單括號「（　）1.…」、雙括號「（　）（　）１…」、無題號僅括號「（　）句子…」、句尾括號「句子。（　）」、或表格框線內的每一句）都必須各自拆成獨立的一個項目，絕不可把多題改錯字合併！「選詞填寫」大題：上方詞庫（如「豐饒 風靡 饗宴 拱手讓人」）整列合成一項；每一題（包含中間的填空括號以及括號前後的文字，即使跨到下一行或下一欄）合成一項，絕不可把括號前後拆成兩項；不可跨越大題之間的分隔橫線合併，上排題目與下排題目一定分開；題組底下的每一個子題（如 (1)、(2)、⑴、⑵、填充小題、計算小題）各自獨立一項；選擇題的「每一個選項（如 ①…、②…、③…、④… 或 (A)…、(B)…）」也請務必各自拆成獨立的一個項目並給出該選項精準的 box_2d 座標！頁首的班級姓名座號欄請省略。'
+      : '每一小題（題號、題幹、國語改錯題每一題、子題）各自獨立成一個項目；選詞填寫的詞庫整列一項、每一題含填空括號前後文字合成一項；不可跨越大題分隔線合併；大題說明自成一項；頁首姓名座號欄省略。');
 
   const prompt = `這是台灣中小學考卷${isCrop?'中被框選的一小塊區域':'的一頁'}，要用來報讀給有特教需求的學生聽。${dirHint}
 請找出圖中要唸的文字，嚴格依照正確閱讀順序輸出：
@@ -2321,8 +2513,117 @@ function refreshLocalVoices(){
 }
 if('speechSynthesis' in window){ refreshLocalVoices(); speechSynthesis.onvoiceschanged = refreshLocalVoices; }
 
+/* ---------- Microsoft Edge 自然台灣語音（固定曉臻，連不上時自動退回本機語音） ---------- */
+const EDGE_VOICE = 'zh-TW-HsiaoChenNeural';
+const ttsAudio = $('ttsAudio');
+const edgeBlobCache = new Map();   // 已合成好的語音（key：語音|語速|文字）
+const edgePending = new Map();     // 合成中的語音，避免同一句重複連線
+let edgeWsFailed = false, edgeFailTimer = null;
+let currentMode = null;            // 'audio'（自然語音）或 'local'（本機語音）
+let audioReady = false, audioSynthRate = 1, audioPrimed = false;
+
+function edgeRateStr(rateFloat){
+  const pct = Math.round((rateFloat - 1) * 100);
+  return (pct >= 0 ? '+' : '') + pct + '%';
+}
+function edgeCacheKey(speechText, rateFloat){ return EDGE_VOICE + '|' + edgeRateStr(rateFloat) + '|' + speechText; }
+function edgeUsable(){ return !edgeWsFailed && navigator.onLine !== false && !!(window.EdgeTTSModule && window.EdgeTTSModule.EdgeTTS); }
+function markEdgeFailed(){
+  edgeWsFailed = true;
+  clearTimeout(edgeFailTimer);
+  edgeFailTimer = setTimeout(() => { edgeWsFailed = false; }, 60000); // 60 秒後再試一次自然語音
+}
+
+async function synthEdgeAudioUrl(speechText, shortVoice, rateFloat){
+  if(edgeWsFailed || navigator.onLine === false) throw new Error('offline');
+  if(!window.EdgeTTSModule || !window.EdgeTTSModule.EdgeTTS) throw new Error('module not loaded');
+  const rateStr = edgeRateStr(rateFloat);
+  const cKey = shortVoice + '|' + rateStr + '|' + speechText;
+  if(edgeBlobCache.has(cKey)) return edgeBlobCache.get(cKey);
+  if(edgePending.has(cKey)) return edgePending.get(cKey);
+  const job = (async () => {
+    const tts = new window.EdgeTTSModule.EdgeTTS(speechText, shortVoice, { rate: rateStr, volume: '+0%', pitch: '+0Hz' });
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 2500));
+    const res = await Promise.race([tts.synthesize(), timeout]);
+    if(!res || !res.audio || res.audio.size < 100) throw new Error('empty');
+    const url = URL.createObjectURL(res.audio);
+    edgeBlobCache.set(cKey, url);
+    if(edgeBlobCache.size > 300){
+      const oldKey = edgeBlobCache.keys().next().value;
+      const oldUrl = edgeBlobCache.get(oldKey);
+      edgeBlobCache.delete(oldKey);
+      if(oldUrl !== ttsAudio.src) try{ URL.revokeObjectURL(oldUrl); }catch(e){}
+    }
+    return url;
+  })();
+  edgePending.set(cKey, job);
+  try{ return await job; }
+  finally{ edgePending.delete(cKey); }
+}
+
+// 背景預先合成（一次一句，避免同時開太多連線），讓學生點下去幾乎沒有延遲
+const edgePrefetchQ = [];
+let edgePrefetchBusy = false;
+function prefetchEdge(speechText, front=false){
+  if(!speechText || !edgeUsable()) return;
+  const k = edgeCacheKey(speechText, S.rate);
+  if(edgeBlobCache.has(k) || edgePending.has(k) || edgePrefetchQ.includes(speechText)) return;
+  if(front) edgePrefetchQ.unshift(speechText); else edgePrefetchQ.push(speechText);
+  if(edgePrefetchQ.length > 40) edgePrefetchQ.length = 40;
+  runEdgePrefetch();
+}
+function runEdgePrefetch(){
+  if(edgePrefetchBusy || !edgePrefetchQ.length || !edgeUsable()) return;
+  edgePrefetchBusy = true;
+  const t = edgePrefetchQ.shift();
+  synthEdgeAudioUrl(t, EDGE_VOICE, S.rate).catch(() => {}).finally(() => {
+    edgePrefetchBusy = false;
+    setTimeout(runEdgePrefetch, 30);
+  });
+}
+function prefetchBlockSpeech(b){
+  if(!b || !b.text) return;
+  try{ const first = splitChunks(b.text)[0]; if(first) prefetchEdge(toSpeech(first)); }catch(e){}
+}
+function prefetchPageBlocks(){
+  try{ (S.blocks || []).slice(0, 6).forEach(prefetchBlockSpeech); }catch(e){}
+}
+window.addEventListener('edgetts-ready', () => setTimeout(prefetchPageBlocks, 100));
+window.addEventListener('online', () => { edgeWsFailed = false; });
+
+// 一段極短的靜音，用來在按下的瞬間解鎖 iPad／iPhone 的音訊播放
+let silentWavUrl = null;
+function getSilentWavUrl(){
+  if(silentWavUrl) return silentWavUrl;
+  const n = 800, buf = new ArrayBuffer(44 + n * 2), dv = new DataView(buf);
+  const w = (o, str) => { for(let i=0;i<str.length;i++) dv.setUint8(o+i, str.charCodeAt(i)); };
+  w(0,'RIFF'); dv.setUint32(4, 36 + n*2, true); w(8,'WAVE'); w(12,'fmt ');
+  dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,1,true);
+  dv.setUint32(24,16000,true); dv.setUint32(28,32000,true); dv.setUint16(32,2,true); dv.setUint16(34,16,true);
+  w(36,'data'); dv.setUint32(40, n*2, true);
+  silentWavUrl = URL.createObjectURL(new Blob([buf], {type:'audio/wav'}));
+  return silentWavUrl;
+}
+function primeAudio(){
+  if(audioPrimed || !ttsAudio) return;
+  audioPrimed = true;
+  try{
+    ttsAudio.onended = null; ttsAudio.onerror = null;
+    ttsAudio.src = getSilentWavUrl();
+    const pr = ttsAudio.play();
+    if(pr && pr.catch) pr.catch(() => {});
+  }catch(e){}
+}
+function stopAudio(){
+  if(!ttsAudio) return;
+  ttsAudio.onended = null; ttsAudio.onerror = null;
+  audioReady = false;
+  try{ ttsAudio.pause(); }catch(e){}
+}
+
 let unlocked = false;
 function unlockSpeech(e){
+  primeAudio();
   if(unlocked) return;
   unlocked = true;
   // 若使用者直接點擊題目框或播放鈕，將由該按鈕直接同步發聲，避免塞入空白語音造成排隊延遲
@@ -2454,14 +2755,33 @@ function stopSpeak(){
   speakSeq++;
   if(pendingSpeakTimer){ clearTimeout(pendingSpeakTimer); pendingSpeakTimer = null; }
   S.speaking = false; S.paused = false;
+  stopAudio();
   cancelNativeSpeechIfNeeded();
+  currentMode = null;
   markBlock(null);
   $('subBar').hidden = true;
   updateNav();
 }
 
 function togglePauseResume(){
-  if(!S.speaking || !('speechSynthesis' in window)) return;
+  if(!S.speaking) return;
+  if(currentMode === 'audio'){
+    if(!S.paused){
+      S.paused = true;
+      try{ ttsAudio.pause(); }catch(e){}
+      updatePlayPauseBtnUI();
+    } else {
+      S.paused = false;
+      updatePlayPauseBtnUI();
+      if(audioReady){
+        const pr = ttsAudio.play();
+        if(pr && pr.catch) pr.catch(() => { activeIdx = Math.max(0, activeIdx - 1); playQueueStep(speakSeq); });
+      }
+      // 若還在合成中，合成完成後會自動開始播放
+    }
+    return;
+  }
+  if(!('speechSynthesis' in window)) return;
   if(!S.paused){
     S.paused = true;
     speechSynthesis.pause();
@@ -2496,7 +2816,9 @@ function pickTaiwanVoice(){
 
 function speakBlocks(list, startBlockIdx=0){
   unlocked = true;
+  primeAudio();
   if(pendingSpeakTimer){ clearTimeout(pendingSpeakTimer); pendingSpeakTimer = null; }
+  stopAudio();
   const wasSpeaking = cancelNativeSpeechIfNeeded();
   speakSeq++;
 
@@ -2530,7 +2852,14 @@ function speakBlocks(list, startBlockIdx=0){
   if(!first.b.temp) markBlock(first.b);
   renderSubtitle(first.b, first.bIdx, first.rawChunk);
   updateNav();
+  // 預先合成下一題，學生接著點下一題時幾乎沒有延遲
+  if(startBlockIdx >= 0 && list.length === 1) prefetchBlockSpeech(S.blocks[startBlockIdx + 1]);
 
+  // 自然語音已合成好或可以連線：直接播放（不需要等 Chromium 的 cancel 延遲）
+  if(edgeUsable()){
+    playQueueStep(mySeq);
+    return;
+  }
   // 若原本無語音在播（或 iOS 裝置），直接同步 0 毫秒發聲；若剛打斷上一題，微延遲 18ms 避開 Chromium cancel 吞字問題
   if(!wasSpeaking || IS_IOS_WEBKIT){
     playQueueStep(mySeq);
@@ -2550,16 +2879,64 @@ function playQueueStep(mySeq){
     updateNav();
     return;
   }
-  if(!('speechSynthesis' in window)){
-    toast('此瀏覽器不支援語音合成，請改用 Chrome、Edge 或 Safari。');
-    stopSpeak(); return;
-  }
 
   const item = activeQueue[activeIdx++];
   if(item.bIdx >= 0) S.curBlockIdx = item.bIdx;
   if(!item.b.temp) markBlock(item.b);
   renderSubtitle(item.b, item.bIdx, item.rawChunk);
 
+  // 先試 Microsoft Edge 自然台灣語音（曉臻），同時預先合成下一句
+  if(edgeUsable()){
+    const nxt = activeQueue[activeIdx];
+    if(nxt) prefetchEdge(nxt.sp, true);
+    currentMode = 'audio';
+    audioReady = false;
+    const rateNow = S.rate;
+    const cached = edgeBlobCache.get(edgeCacheKey(item.sp, rateNow));
+    if(cached){ playEdgeAudio(cached, rateNow, item, mySeq); return; }
+    synthEdgeAudioUrl(item.sp, EDGE_VOICE, rateNow).then(url => {
+      if(mySeq !== speakSeq) return;
+      playEdgeAudio(url, rateNow, item, mySeq);
+    }).catch(() => {
+      if(mySeq !== speakSeq) return;
+      markEdgeFailed();
+      speakLocalItem(item, mySeq);
+    });
+    return;
+  }
+  speakLocalItem(item, mySeq);
+}
+
+function playEdgeAudio(url, synthRate, item, mySeq){
+  currentMode = 'audio';
+  audioSynthRate = synthRate;
+  ttsAudio.onended = () => { audioReady = false; playQueueStep(mySeq); };
+  ttsAudio.onerror = () => {
+    if(mySeq !== speakSeq) return;
+    ttsAudio.onended = null; ttsAudio.onerror = null; audioReady = false;
+    speakLocalItem(item, mySeq);
+  };
+  ttsAudio.src = url;
+  try{ ttsAudio.preservesPitch = true; }catch(e){}
+  ttsAudio.playbackRate = Math.max(0.5, Math.min(2, S.rate / synthRate));
+  audioReady = true;
+  if(S.paused) return; // 暫停中：按繼續時再播放
+  const pr = ttsAudio.play();
+  if(pr && pr.catch) pr.catch(() => {
+    if(mySeq !== speakSeq || S.paused) return;
+    ttsAudio.onended = null; ttsAudio.onerror = null; audioReady = false;
+    speakLocalItem(item, mySeq);
+  });
+}
+
+// 本機語音備援（沒有網路或自然語音連不上時）
+function speakLocalItem(item, mySeq){
+  if(mySeq !== speakSeq) return;
+  currentMode = 'local';
+  if(!('speechSynthesis' in window)){
+    toast('此瀏覽器不支援語音合成，請改用 Chrome、Edge 或 Safari。');
+    stopSpeak(); return;
+  }
   const u = new SpeechSynthesisUtterance(item.sp);
   const v = pickTaiwanVoice();
   if(v){ u.voice = v; u.lang = v.lang; } else { u.lang = 'zh-TW'; }
@@ -2646,6 +3023,11 @@ function setRate(val, liveApply=false){
   store.set('rate', S.rate);
   syncSpeedUI();
   // 若正在朗讀中調整速度，立刻以新語速從當前句子無縫重讀！
+  if(liveApply && S.speaking && currentMode === 'audio'){
+    // 自然語音：直接調整播放速度，立即生效不中斷；下一句會用新語速合成
+    if(audioReady){ try{ ttsAudio.playbackRate = Math.max(0.5, Math.min(2, S.rate / audioSynthRate)); }catch(e){} }
+    return;
+  }
   if(liveApply && S.speaking && !S.paused && activeQueue.length){
     if(pendingSpeakTimer){ clearTimeout(pendingSpeakTimer); pendingSpeakTimer = null; }
     cancelNativeSpeechIfNeeded();
