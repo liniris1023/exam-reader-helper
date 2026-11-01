@@ -300,6 +300,19 @@ kbd{font-family:var(--font-display);background:var(--accent-soft);border-radius:
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(136px + env(safe-area-inset-bottom,0px));z-index:65;background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:12px;max-width:min(580px,92vw);font-size:.95rem;box-shadow:0 6px 20px rgba(0,0,0,.22);text-align:center}
 
 /* 對話框 */
+/* 老師端／學生端分頁：t-only 只在老師端出現，s-only 只在學生端出現 */
+html.role-student .t-only{display:none !important}
+html:not(.role-student) .s-only{display:none !important}
+.stu-home{display:grid;gap:16px;text-align:center}
+.stu-home h2{font-family:var(--font-display);font-weight:400;font-size:1.5rem;margin:0}
+.stu-home p{margin:0;color:var(--muted)}
+.stu-home .big .btn{min-height:110px;font-size:1.35rem;flex-direction:column;gap:6px}
+.stu-home .big .btn small{font-size:.9rem;font-weight:400;opacity:.85}
+.role-tag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:.72rem;vertical-align:middle;background:var(--accent-soft);color:var(--accent)}
+.scan-wrap{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:1/1;max-height:62vh;margin:0 auto;width:min(100%,62vh)}
+.scan-wrap video{width:100%;height:100%;object-fit:cover;display:block}
+.scan-frame{position:absolute;inset:16%;border:4px solid rgba(255,255,255,.9);border-radius:16px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+.scan-msg{text-align:center;margin:10px 0 0;font-size:1.05rem}
 dialog{border:0;border-radius:var(--r);background:var(--paper);color:var(--ink);width:min(680px,94vw);max-height:90vh;padding:0;box-shadow:0 20px 50px rgba(0,0,0,.3)}
 dialog::backdrop{background:rgba(10,20,25,.5)}
 .dlg{padding:20px 22px;display:grid;gap:15px}
@@ -345,7 +358,7 @@ a{color:var(--accent)}
   window.EdgeTTSModule = { EdgeTTS };
   window.dispatchEvent(new CustomEvent('edgetts-ready'));
 </script>
-<!-- erh-build: 2026-11-01 只報讀不作答 -->
+<!-- erh-build: 2026-11-01 老師端／學生端分頁 -->
 </head>
 <body>
 
@@ -354,22 +367,23 @@ a{color:var(--accent)}
     <span class="brand-badge" aria-hidden="true">🔊</span>
     <span class="brand-txt" id="headerTitleTxt">評量報讀小幫手<small>每一小題、改錯題與選項皆可獨立點讀・支援考卷 QR Code</small></span>
   </h1>
-  <button class="btn indigo" id="bToggleCabinet" type="button" title="上傳各科考卷並產生考卷專屬 QR Code">
+  <button class="btn indigo s-only" id="bScanQr" type="button" title="用平板相機掃描老師給的考卷 QR Code">📱 掃描考卷 QR Code</button>
+  <button class="btn indigo t-only" id="bToggleCabinet" type="button" title="上傳各科考卷並產生考卷專屬 QR Code">
     📚 考卷 QR 區 <span class="cnt-badge" id="cabCount">0</span>
   </button>
   <button class="btn primary" id="bCam" type="button">📷 拍考卷</button>
-  <button class="btn" id="bOpen" type="button">📄 開啟考卷</button>
-  <button class="btn" id="bLockToggle" type="button" title="切換為學生純淨模式">🎓 學生模式</button>
+  <button class="btn t-only" id="bOpen" type="button">📄 開啟考卷</button>
+  <button class="btn t-only" id="bLockToggle" type="button" title="在新分頁打開學生端頁面">🎓 學生端</button>
   <button class="btn lock-pill" id="bUnlock" type="button" hidden title="長按 1.5 秒解鎖回老師模式">
     <span class="fill" id="unlockFill"></span>
     <span>🔒 學生模式（長按解鎖）</span>
   </button>
   <button class="btn icon" id="bTheme" type="button" aria-label="切換深淺色背景" title="切換深淺色背景">🌓</button>
-  <button class="btn icon" id="bSet" type="button" aria-label="老師設定" title="老師設定">⚙️</button>
+  <button class="btn icon t-only" id="bSet" type="button" aria-label="老師設定" title="老師設定">⚙️</button>
 </header>
 
 <div class="opts">
-  <span class="seg" role="group" aria-label="文字排列">
+  <span class="seg t-only" role="group" aria-label="文字排列">
     <button type="button" data-dir="h" aria-pressed="true">橫式</button>
     <button type="button" data-dir="v" aria-pressed="false">直式（國語）</button>
     <button type="button" data-dir="auto" aria-pressed="false">自動判斷</button>
@@ -388,12 +402,12 @@ a{color:var(--accent)}
     </span>
   </div>
   <span class="status-chip" id="layoutChip" hidden>↔ 橫式排列</span>
-  <span class="status-chip live" id="hostStatusChip" hidden>🟢 考卷連線就緒</span>
+  <span class="status-chip live t-only" id="hostStatusChip" hidden>🟢 考卷連線就緒</span>
 </div>
 
 <main>
   <!-- 📚 老師上傳考卷・考卷專屬 QR Code 專區 -->
-  <section class="cabinet" id="cabinetSection">
+  <section class="cabinet t-only" id="cabinetSection">
     <div class="cab-head">
       <div>
         <h2>📚 老師上傳考卷・考卷 QR Code 區</h2>
@@ -421,12 +435,22 @@ a{color:var(--accent)}
 
   <!-- 尚未開啟考卷時的單機快速入口 -->
   <section class="empty" id="empty">
-    <h2>現場直接開卷報讀（或使用上方「考卷 QR 區」讓學生掃碼領卷）</h2>
-    <div class="big">
+    <!-- 學生端首頁：只能掃老師的考卷 QR Code，或立即拍照報讀 -->
+    <div class="stu-home s-only">
+      <h2>🎓 學生端・評量報讀</h2>
+      <p>請選擇一種方式開始：</p>
+      <div class="big">
+        <button class="btn indigo" id="bScanQr2" type="button">📱 掃描老師的考卷 QR Code<small>拿到老師準備好的考卷，逐題點讀</small></button>
+        <button class="btn primary" id="bCam3" type="button">📷 立即拍照報讀<small>拍下手上的考卷，馬上點題報讀</small></button>
+      </div>
+      <p>點一下考卷上的題目框，就會唸出那一題。</p>
+    </div>
+    <h2 class="t-only">現場直接開卷報讀（或使用上方「考卷 QR 區」讓學生掃碼領卷）</h2>
+    <div class="big t-only">
       <button class="btn primary" id="bCam2" type="button">📷 直接拍考卷報讀</button>
       <button class="btn" id="bOpen2" type="button">📄 直接開啟 PDF／圖片</button>
     </div>
-    <div class="tips">
+    <div class="tips t-only">
       <div class="tip-card">
         <b>✨ 每小題、國語改錯題、選項皆獨立</b>
         大題標題、是非選擇、<b>國語改錯題每一題</b>、子題 <kbd>(1)</kbd> <kbd>(2)</kbd> 與選項 <kbd>①</kbd>～<kbd>④</kbd> 皆有獨立框框，點哪題就唸哪題！
@@ -442,11 +466,11 @@ a{color:var(--accent)}
     </div>
 
     <!-- 首頁底部：本網站 QR Code（平板掃描即可打開評量報讀小幫手） -->
-    <div class="site-qr" id="siteQrCard">
+    <div class="site-qr t-only" id="siteQrCard">
       <div class="site-qr-code" id="siteQrBox" aria-label="評量報讀小幫手網址 QR Code"></div>
       <div class="site-qr-info">
-        <b>📱 掃描 QR Code 打開「評量報讀小幫手」</b>
-        <span>平板或手機用相機掃描，就能直接打開這個網站。</span>
+        <b>🎓 學生端 QR Code</b>
+        <span>學生用平板掃描，就會打開「學生端」：可以掃老師的考卷 QR Code 領卷，或拍照立即報讀。老師端（本頁）用來上傳考卷、產生考卷 QR Code。</span>
         <code id="siteQrUrl"></code>
         <button class="btn sm" id="bSiteQrSave" type="button">⬇️ 下載 QR Code 圖片</button>
       </div>
@@ -545,6 +569,18 @@ a{color:var(--accent)}
 <div class="drop-mask" id="dropMask" hidden><div>📥 放開滑鼠即可載入考卷 PDF 或圖片</div></div>
 <div class="busy" id="busy" hidden><div class="card"><span class="spin"></span><span id="busyText">處理中…</span></div></div>
 <div class="toast" id="toast" hidden></div>
+
+<!-- 學生端：掃描老師的考卷 QR Code -->
+<dialog id="scanDlg">
+  <div class="dlg">
+    <h2>
+      <span>📱 掃描老師的考卷 QR Code</span>
+      <button type="button" class="btn sm" id="bCloseScan">✕</button>
+    </h2>
+    <div class="scan-wrap"><video id="scanVideo" playsinline muted></video><div class="scan-frame"></div></div>
+    <p class="scan-msg" id="scanMsg">把老師給的 QR Code 放進白色框框裡</p>
+  </div>
+</dialog>
 
 <!-- 單份考卷 QR Code 放大彈窗 -->
 <dialog id="qrDlg">
@@ -698,6 +734,11 @@ if(S.model === 'gemini-flash-latest') S.model = 'gemini-2.5-flash';
     if(Number.isFinite(rv) && rv >= 0.5 && rv <= 1.6) S.rate = Math.round(rv * 20) / 20;
   }
   if(p.get('student') === '1') S.studentMode = true;
+  // 學生端：網頁最外層加上 role-student，老師端的功能（上傳、考卷 QR 區、設定）一律不顯示
+  if(S.studentMode){
+    document.documentElement.classList.add('role-student');
+    if(!['h','v','auto'].includes(p.get('dir'))) S.dir = 'auto'; // 學生拍照時自動判斷橫式／直式
+  }
   if(p.get('pin')) S.lockPin = p.get('pin');
   if(p.get('title')) S.examTitle = p.get('title');
   if(p.get('room') && p.get('exam')){
@@ -1744,12 +1785,15 @@ function updateBannerUI(){
     }
   } else {
     $('examBanner').hidden = true;
-    document.title = '評量報讀小幫手｜每小題獨立點讀・考卷 QR Code';
+    document.title = S.studentMode ? '評量報讀小幫手｜學生端' : '評量報讀小幫手｜老師端';
     if(hdr){
       hdr.innerHTML = '';
       const sub = document.createElement('small');
-      sub.textContent = '每一小題、改錯題與選項皆可獨立點讀・支援考卷 QR Code';
-      hdr.append(document.createTextNode('評量報讀小幫手'), sub);
+      const tag = document.createElement('span');
+      tag.className = 'role-tag';
+      tag.textContent = S.studentMode ? '學生端' : '老師端';
+      sub.textContent = S.studentMode ? '掃描老師的考卷 QR Code，或拍照立即報讀' : '上傳考卷、產生考卷 QR Code・每一小題皆可獨立點讀';
+      hdr.append(document.createTextNode('評量報讀小幫手'), tag, sub);
     }
   }
 }
@@ -2173,11 +2217,16 @@ function getBaseShareUrl(){
 
 // 首頁底部：本網站 QR Code（若是在電腦本機開啟檔案，就改用正式網址）
 const SITE_PUBLIC_URL = 'https://liniris1023.github.io/exam-reader-helper/';
+// 學生端網址（student.html 會自動轉到學生端）
+function getStudentPageUrl(){
+  const base = getBaseShareUrl();
+  const root = /^https?:/.test(base) && !/localhost|127\.0\.0\.1/.test(base) ? base.replace(/[^/]*$/, '') : SITE_PUBLIC_URL;
+  return root + 'student.html';
+}
 function renderSiteQr(){
   const box = $('siteQrBox');
   if(!box || typeof QRCode === 'undefined') return;
-  const base = getBaseShareUrl();
-  const url = /^https?:/.test(base) && !/localhost|127\.0\.0\.1/.test(base) ? base : SITE_PUBLIC_URL;
+  const url = getStudentPageUrl();
   box.innerHTML = '';
   try{ new QRCode(box, { text:url, width:300, height:300, correctLevel: QRCode.CorrectLevel.M }); }catch(e){ return; }
   $('siteQrUrl').textContent = url;
@@ -2196,9 +2245,9 @@ $('bSiteQrSave').addEventListener('click', () => {
     g.fillStyle = '#fff'; g.fillRect(0,0,W,H);
     g.drawImage(pic, pad, pad);
     g.fillStyle = '#0f7b6c'; g.font = 'bold 28px sans-serif'; g.textAlign = 'center';
-    g.fillText('評量報讀小幫手', W/2, H - 34);
+    g.fillText('評量報讀小幫手・學生端', W/2, H - 34);
     const a = document.createElement('a');
-    a.href = c.toDataURL('image/png'); a.download = '評量報讀小幫手_QRCode.png';
+    a.href = c.toDataURL('image/png'); a.download = '評量報讀小幫手_學生端_QRCode.png';
     document.body.appendChild(a); a.click(); a.remove();
   };
   pic.src = src;
@@ -2231,7 +2280,7 @@ function buildStudentExamUrl(exam){
 }
 
 function startTeacherPeerHost(){
-  if(hostPeer || !window.Peer || S.incomingExamId) return;
+  if(hostPeer || !window.Peer || S.incomingExamId || S.studentMode) return;
   try{
     hostPeer = new Peer(teacherRoomId);
     hostPeer.on('open', () => {
@@ -3149,7 +3198,8 @@ function applyStudentModeUI(){
   $('bSet').hidden = locked;
   $('bToggleCabinet').hidden = locked;
   $('bLockToggle').hidden = locked;
-  $('bUnlock').hidden = !locked;
+  $('bUnlock').hidden = true; // 學生端與老師端已分開，不再提供長按解鎖
+  if(locked) $('bCam').textContent = '📷 拍照報讀';
   $('texts').hidden = locked;
   $('teacherPaperTools').hidden = locked;
   if(locked){
@@ -3161,9 +3211,7 @@ function applyStudentModeUI(){
 applyStudentModeUI();
 
 $('bLockToggle').addEventListener('click', () => {
-  S.studentMode = true;
-  applyStudentModeUI();
-  toast('已進入「🎓 學生模式」：派卷區與設定已隱藏，長按右上角可解鎖。', 4200);
+  window.open(getStudentPageUrl(), '_blank', 'noopener');
 });
 
 let holdTimer = null, holdStart = 0;
@@ -3256,7 +3304,98 @@ document.querySelectorAll('.speed-pill').forEach(btn => {
   });
 });
 
-['bCam','bCam2'].forEach(id => $(id).addEventListener('click', () => $('fCam').click()));
+['bCam','bCam2','bCam3'].forEach(id => $(id).addEventListener('click', () => $('fCam').click()));
+
+/* ================= 學生端：掃描老師的考卷 QR Code ================= */
+let scanStream = null, scanTimer = null, scanDetector = null, scanBusy = false;
+function loadJsQr(){
+  if(window.jsQR) return Promise.resolve();
+  return new Promise((ok, bad) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+    sc.onload = ok; sc.onerror = bad;
+    document.head.appendChild(sc);
+  });
+}
+function stopScan(){
+  clearTimeout(scanTimer); scanTimer = null;
+  if(scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  const v = $('scanVideo'); if(v) v.srcObject = null;
+}
+function isTeacherExamUrl(u){
+  // 只接受本網站產生的考卷 QR Code（含 room＋exam，或附有題目包 #q=）
+  if(!/^https?:$/.test(u.protocol) && u.protocol !== 'file:') return false;
+  const sameSite = u.host === location.host || u.host === 'liniris1023.github.io';
+  if(!sameSite || !/exam-reader-helper|index\.html|student\.html|\/$/.test(u.pathname)) return false;
+  return (u.searchParams.get('room') && u.searchParams.get('exam')) || u.hash.startsWith('#q=');
+}
+function handleScanText(txt){
+  let u = null;
+  try{ u = new URL(String(txt).trim(), location.href); }catch(e){}
+  if(u && isTeacherExamUrl(u)){
+    $('scanMsg').textContent = '✅ 找到考卷了，正在打開…';
+    stopScan();
+    u.searchParams.set('student', '1');
+    location.href = u.href;
+    return true;
+  }
+  $('scanMsg').textContent = '⚠️ 這不是老師給的考卷 QR Code，請再掃一次';
+  return false;
+}
+async function scanTick(){
+  const v = $('scanVideo');
+  if(!scanStream || !v || v.readyState < 2){ scanTimer = setTimeout(scanTick, 200); return; }
+  if(!scanBusy){
+    scanBusy = true;
+    try{
+      let txt = '';
+      if(scanDetector){
+        const codes = await scanDetector.detect(v);
+        if(codes && codes.length) txt = codes[0].rawValue;
+      } else if(window.jsQR){
+        const c = scanTick.cv || (scanTick.cv = document.createElement('canvas'));
+        const w = Math.min(640, v.videoWidth), h = Math.round(v.videoHeight * w / v.videoWidth);
+        c.width = w; c.height = h;
+        const g = c.getContext('2d', { willReadFrequently: true });
+        g.drawImage(v, 0, 0, w, h);
+        const r = window.jsQR(g.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'dontInvert' });
+        if(r && r.data) txt = r.data;
+      }
+      if(txt && handleScanText(txt)){ scanBusy = false; return; }
+    }catch(e){}
+    scanBusy = false;
+  }
+  if(scanStream) scanTimer = setTimeout(scanTick, 160);
+}
+async function openQrScanner(){
+  stopSpeak();
+  $('scanMsg').textContent = '把老師給的 QR Code 放進白色框框裡';
+  $('scanDlg').showModal();
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    $('scanMsg').textContent = '這台裝置無法在網頁中開相機，請改用平板的「相機」App 掃描老師的 QR Code。';
+    return;
+  }
+  try{
+    if('BarcodeDetector' in window){
+      try{
+        const fmts = await window.BarcodeDetector.getSupportedFormats();
+        if(fmts.includes('qr_code')) scanDetector = new window.BarcodeDetector({ formats:['qr_code'] });
+      }catch(e){ scanDetector = null; }
+    }
+    if(!scanDetector) await loadJsQr();
+    scanStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'environment' } }, audio:false });
+    const v = $('scanVideo');
+    v.srcObject = scanStream;
+    await v.play().catch(() => {});
+    scanTick();
+  }catch(e){
+    stopScan();
+    $('scanMsg').textContent = '沒辦法打開相機。請按「允許」使用相機，或改用平板的「相機」App 掃描老師的 QR Code。';
+  }
+}
+['bScanQr','bScanQr2'].forEach(id => $(id).addEventListener('click', openQrScanner));
+$('bCloseScan').addEventListener('click', () => { stopScan(); $('scanDlg').close(); });
+$('scanDlg').addEventListener('close', stopScan);
 ['bOpen','bOpen2'].forEach(id => $(id).addEventListener('click', () => $('fOpen').click()));
 
 async function handleIncomingFiles(files, appendPhotos=false){
@@ -3309,6 +3448,7 @@ async function addImages(files, replace){
 
 let dragDepth = 0;
 window.addEventListener('dragenter', e => {
+  if(S.studentMode) return;
   if(e.dataTransfer && [...e.dataTransfer.types].includes('Files')){
     dragDepth++; $('dropMask').hidden = false; $('empty').classList.add('dragover');
   }
@@ -3319,6 +3459,7 @@ window.addEventListener('dragleave', () => {
   if(!dragDepth){ $('dropMask').hidden = true; $('empty').classList.remove('dragover'); }
 });
 window.addEventListener('drop', async e => {
+  if(S.studentMode){ e.preventDefault(); return; }
   if(!e.dataTransfer || !e.dataTransfer.files.length) return;
   e.preventDefault();
   dragDepth = 0; $('dropMask').hidden = true; $('empty').classList.remove('dragover');
@@ -3326,6 +3467,7 @@ window.addEventListener('drop', async e => {
 });
 
 window.addEventListener('paste', async e => {
+  if(S.studentMode) return;
   const active = document.activeElement;
   if(active && (active.tagName==='INPUT' || active.tagName==='TEXTAREA' || active.isContentEditable)) return;
   const files = [...(e.clipboardData?.files || [])];
