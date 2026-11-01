@@ -360,7 +360,7 @@ a{color:var(--accent)}
   window.EdgeTTSModule = { EdgeTTS };
   window.dispatchEvent(new CustomEvent('edgetts-ready'));
 </script>
-<!-- erh-build: 2026-11-01 兩端最下方網站 QR Code -->
+<!-- erh-build: 2026-11-02 點題立即發聲（自然語音先試連） -->
 </head>
 <body>
 
@@ -2788,6 +2788,8 @@ const ttsAudio = $('ttsAudio');
 const edgeBlobCache = new Map();   // 已合成好的語音（key：語音|語速|文字）
 const edgePending = new Map();     // 合成中的語音，避免同一句重複連線
 let edgeWsFailed = false, edgeFailTimer = null;
+// 自然語音要先「試連成功」才使用；沒確認前一律用平板／電腦內建語音，按下題目就立刻唸（iPad 必須在按下的當下發聲，否則會被擋住）
+let edgeOk = false, edgeProbing = false, edgeProbeTimer = null;
 let currentMode = null;            // 'audio'（自然語音）或 'local'（本機語音）
 let audioReady = false, audioSynthRate = 1, audioPrimed = false;
 
@@ -2796,11 +2798,31 @@ function edgeRateStr(rateFloat){
   return (pct >= 0 ? '+' : '') + pct + '%';
 }
 function edgeCacheKey(speechText, rateFloat){ return EDGE_VOICE + '|' + edgeRateStr(rateFloat) + '|' + speechText; }
-function edgeUsable(){ return !edgeWsFailed && navigator.onLine !== false && !!(window.EdgeTTSModule && window.EdgeTTSModule.EdgeTTS); }
+function edgeUsable(){ return edgeOk && !edgeWsFailed && navigator.onLine !== false && !!(window.EdgeTTSModule && window.EdgeTTSModule.EdgeTTS); }
 function markEdgeFailed(){
-  edgeWsFailed = true;
+  edgeWsFailed = true; edgeOk = false;
   clearTimeout(edgeFailTimer);
-  edgeFailTimer = setTimeout(() => { edgeWsFailed = false; }, 60000); // 60 秒後再試一次自然語音
+  // 自然語音連不上：之後都先用內建語音，5 分鐘後在背景再偷偷試一次（不影響學生點題）
+  edgeFailTimer = setTimeout(() => { edgeWsFailed = false; probeEdge(); }, 300000);
+}
+// 背景試連自然語音（不在學生點題時等待）
+async function probeEdge(){
+  if(edgeOk || edgeProbing || navigator.onLine === false) return;
+  if(!window.EdgeTTSModule || !window.EdgeTTSModule.EdgeTTS) return;
+  edgeProbing = true;
+  try{
+    const tts = new window.EdgeTTSModule.EdgeTTS('你好', EDGE_VOICE, { rate:'+0%', volume:'+0%', pitch:'+0Hz' });
+    const res = await Promise.race([tts.synthesize(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000))]);
+    if(!res || !res.audio || res.audio.size < 100) throw new Error('empty');
+    edgeOk = true; edgeWsFailed = false;
+    setTimeout(prefetchPageBlocks, 50);
+  }catch(e){
+    edgeOk = false;
+    clearTimeout(edgeProbeTimer);
+    edgeProbeTimer = setTimeout(probeEdge, 300000);
+  }finally{
+    edgeProbing = false;
+  }
 }
 
 async function synthEdgeAudioUrl(speechText, shortVoice, rateFloat){
@@ -2857,8 +2879,9 @@ function prefetchBlockSpeech(b){
 function prefetchPageBlocks(){
   try{ (S.blocks || []).slice(0, 6).forEach(prefetchBlockSpeech); }catch(e){}
 }
-window.addEventListener('edgetts-ready', () => setTimeout(prefetchPageBlocks, 100));
-window.addEventListener('online', () => { edgeWsFailed = false; });
+window.addEventListener('edgetts-ready', () => setTimeout(probeEdge, 300));
+if(window.EdgeTTSModule) setTimeout(probeEdge, 300);
+window.addEventListener('online', () => { edgeWsFailed = false; probeEdge(); });
 
 // 一段極短的靜音，用來在按下的瞬間解鎖 iPad／iPhone 的音訊播放
 let silentWavUrl = null;
