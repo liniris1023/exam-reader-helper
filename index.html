@@ -345,7 +345,7 @@ a{color:var(--accent)}
   window.EdgeTTSModule = { EdgeTTS };
   window.dispatchEvent(new CustomEvent('edgetts-ready'));
 </script>
-<!-- erh-build: 2026-11-01 首頁網站 QR Code -->
+<!-- erh-build: 2026-11-01 不報讀答案 -->
 </head>
 <body>
 
@@ -820,6 +820,84 @@ function joinText(a, b){
   return a + (needSpace ? ' ' : '') + b;
 }
 function meaningful(t){ return /[A-Za-z0-9ㄅ-ㄯ㐀-鿿①-⑳□]/.test(t || ''); }
+
+/* ================= 防止報讀出答案：考卷上已填寫的答案一律改成空白括號 ================= */
+const ANS_OP = '×✕＊*÷＋+－−\\-';
+// 1.「＝（ 1700 ）」「＝(19864)」：等號後括號內已填的內容 → 「＝（　）」
+const RE_ANS_AFTER_EQ = /([=＝])\s*[（(]\s*([^()（）]*?)\s*[)）]/g;
+// 2.「×（ 7 ）」：運算符號後面括號裡是數字 → 答案
+const RE_ANS_AFTER_OP = new RegExp('([' + ANS_OP + '])\\s*[（(]\\s*[0-9０-９.．/／\\s]+\\s*[)）]', 'g');
+// 3.「（ 7 ）×」：括號裡是數字、後面接運算符號或等號（不在開頭，避免切到子題 (1)）→ 答案
+const RE_ANS_BEFORE_OP = new RegExp('[（(]\\s*[0-9０-９.．/／\\s]+\\s*[)）](?=\\s*[' + ANS_OP + '=＝])', 'g');
+// 4.「68×25=1700」：左邊有運算符號的算式，等號後直接寫數字 → 答案
+const RE_ANS_PLAIN = new RegExp('([' + ANS_OP + '][^=＝，。！？]*?)([=＝])\\s*[0-9０-９][0-9０-９.．,，/／]*(?=\\s|$|[，。,；;、]|[\\u4e00-\\u9fff])', 'g');
+function stripAnswers(text){
+  if(!text) return text;
+  let s = text;
+  s = s.replace(RE_ANS_AFTER_EQ, (m, eq, inner) => inner.replace(/[\s　_＿]/g, '') ? eq + '（　）' : m);
+  s = s.replace(RE_ANS_AFTER_OP, (m, op) => op + '（　）');
+  s = s.replace(RE_ANS_BEFORE_OP, function(m){
+    const offset = arguments[arguments.length - 2];
+    const before = s.slice(0, offset);
+    // 題首的 (1)、(2) 是子題編號，不是答案
+    if(!before.trim() || /[\s　。！？；]$/.test(before) && !/[0-9０-９×✕＊*÷＋+－−\-=＝]\s*$/.test(before)) return m;
+    return '（　）';
+  });
+  s = s.replace(RE_ANS_PLAIN, '$1$2（　）');
+  return s;
+}
+
+// 考卷 PDF 上的紅色字（教師版答案）不報讀：取樣畫面顏色，紅色為主的文字片段直接略過
+function isRedInkPixel(r, g, b){ return r > 120 && r - g > 70 && r - b > 50; }
+function dropRedAnswerItems(items, canvas){
+  if(!items || !items.length || !canvas || !canvas.width) return items;
+  let data, W, H;
+  try{
+    W = canvas.width; H = canvas.height;
+    data = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, H).data;
+  }catch(e){ return items; }
+  const out = [];
+  for(const it of items){
+    const x0 = Math.max(0, Math.floor(it.x)), y0 = Math.max(0, Math.floor(it.y));
+    const x1 = Math.min(W, Math.ceil(it.x + it.w)), y1 = Math.min(H, Math.ceil(it.y + it.h));
+    let ink = 0, red = 0;
+    if(x1 > x0 && y1 > y0){
+      const step = Math.max(1, Math.floor(Math.min(x1 - x0, y1 - y0) / 14));
+      for(let y = y0; y < y1; y += step){
+        for(let x = x0; x < x1; x += step){
+          const k = (y * W + x) * 4, r = data[k], g = data[k+1], b = data[k+2];
+          const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+          if(mx < 225 || mx - mn > 70){
+            ink++;
+            if(isRedInkPixel(r, g, b)) red++;
+          }
+        }
+      }
+    }
+    if(ink >= 4 && red / ink > 0.55) continue; // 紅色答案字 → 不報讀
+    out.push(it);
+  }
+  return out;
+}
+// 複製一份畫面並把紅色字塗白，給 OCR／Gemini 辨識用（避免把紅色答案唸出來）
+function maskRedInk(canvas){
+  try{
+    const c = document.createElement('canvas');
+    c.width = canvas.width; c.height = canvas.height;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(canvas, 0, 0);
+    const img = g.getImageData(0, 0, c.width, c.height), d = img.data;
+    let hit = 0;
+    for(let k = 0; k < d.length; k += 4){
+      // 塗白時放寬條件，連紅字邊緣的淡粉紅也一起塗掉
+      const r = d[k], gg = d[k+1], b = d[k+2];
+      if(r > 150 && r - gg > 40 && r - b > 30){ d[k] = d[k+1] = d[k+2] = 255; hit++; }
+    }
+    if(!hit) return canvas;
+    g.putImageData(img, 0, 0);
+    return c;
+  }catch(e){ return canvas; }
+}
 function median(arr, fb=16){
   const v = arr.filter(x => Number.isFinite(x) && x > 0).sort((a,b)=>a-b);
   if(!v.length) return fb;
@@ -828,7 +906,7 @@ function median(arr, fb=16){
 }
 
 /* ================= 編輯紀錄持久化 ================= */
-function editStorageKey(pageIdx){ return 'erh_ed_v6_' + S.docId + '_p' + pageIdx + '_' + S.dir + '_' + (S.fineSplit?1:0); }
+function editStorageKey(pageIdx){ return 'erh_ed_v7_' + S.docId + '_p' + pageIdx + '_' + S.dir + '_' + (S.fineSplit?1:0); }
 function savePageEdits(){
   if(!S.pages.length) return;
   const slim = S.blocks.map(b => ({x:Math.round(b.x), y:Math.round(b.y), w:Math.round(b.w), h:Math.round(b.h), text:b.text, dir:b.dir||'h'}));
@@ -1381,9 +1459,9 @@ function orderAndMerge(rawLines, dir, pageW=0, rules=[]){
       }
       if(cur) out.push(cur);
     }
-    return out.map(({last, ...b}) => b);
+    return out.map(({last, ...b}) => ({...b, text: stripAnswers(b.text)}));
   }
-  return orderHorizontalWithColumns(lines, pageW);
+  return orderHorizontalWithColumns(lines, pageW).map(b => ({...b, text: stripAnswers(b.text)}));
 }
 
 function itemsToLines(rawItems, dir, rules=[]){
@@ -1745,7 +1823,8 @@ async function analyze(i, myRender, forceReOcr=false){
   let blocks = null;
   if(pg.kind === 'pdf' && !forceReOcr){
     busy('正在解析 PDF 每一小題與選項座標…');
-    const items = await pdfTextItems(pg.num);
+    const rawItems = await pdfTextItems(pg.num);
+    const items = rawItems ? dropRedAnswerItems(rawItems, cv) : null;
     if(items){
       pg.items = items;
       const d = S.dir === 'auto' ? pickDirFromItems(items) : S.dir;
@@ -1755,12 +1834,12 @@ async function analyze(i, myRender, forceReOcr=false){
   }
   if(!blocks){
     if(S.engine === 'gemini' && S.key){
-      try{ blocks = await geminiRead(cv, false); }
+      try{ blocks = await geminiRead(maskRedInk(cv), false); }
       catch(e){ console.error(e); toast('Gemini 辨識失敗（'+e.message+'），自動改用免費辨識。', 5000); }
     } else if(S.engine === 'gemini' && !S.key){
       toast('尚未填入 Gemini 金鑰，先使用免費本機辨識。');
     }
-    if(!blocks) blocks = await tessPage(cv, S.dir);
+    if(!blocks) blocks = await tessPage(maskRedInk(cv), S.dir);
   }
   if(myRender !== S.renderToken) return;
   S.cache.set(key, blocks);
@@ -2037,7 +2116,7 @@ async function geminiRead(canvas, isCrop){
 1. 橫式文字：若有左右兩欄，先讀完左欄再讀右欄；每欄由左到右、由上到下。直式文字（國語直排）：每行由上到下，行與行由右到左；上下多個大題先讀上面再讀下面。
 2. ${granRule}
 3. 國字旁邊附註的小注音請忽略只輸出國字；但若該小題或選項本身就是在考注音符號（旁邊無對應國字），請完整保留注音符號！
-4. 空白填答括號輸出「（　）」，空白方格輸出「□」，填答底線輸出「＿＿」。數學分數與符號照原樣輸出。嚴禁作答或洩漏答案。
+4. 空白填答括號輸出「（　）」，空白方格輸出「□」，填答底線輸出「＿＿」。數學分數與符號照原樣輸出。嚴禁作答或洩漏答案：考卷上已經寫好的答案（紅色字、藍色字、手寫字、括號或方格裡已填的數字或文字、等號後面的計算結果）一律不要輸出，改輸出空白括號「（　）」；只輸出題目本身的文字。
 輸出 JSON 陣列，元素格式 {"text": "文字", "dir": "h" 或 "v", "box_2d": [ymin, xmin, ymax, xmax]}，座標 0 到 1000。`;
 
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(S.model)+':generateContent?key='+encodeURIComponent(S.key);
@@ -2065,7 +2144,7 @@ async function geminiRead(canvas, isCrop){
   return arr.filter(o => o && o.text && meaningful(o.text)).map(o => {
     const bx = Array.isArray(o.box_2d) && o.box_2d.length===4 ? o.box_2d : [0,0,1000,1000];
     const y0 = bx[0]/1000*H, x0 = bx[1]/1000*W, y1 = bx[2]/1000*H, x1 = bx[3]/1000*W;
-    return {x:Math.min(x0,x1), y:Math.min(y0,y1), w:Math.abs(x1-x0), h:Math.abs(y1-y0), text:cleanText(o.text), dir:o.dir==='v'?'v':'h'};
+    return {x:Math.min(x0,x1), y:Math.min(y0,y1), w:Math.abs(x1-x0), h:Math.abs(y1-y0), text:stripAnswers(cleanText(o.text)), dir:o.dir==='v'?'v':'h'};
   });
 }
 
@@ -2561,7 +2640,7 @@ async function processRegion(r, mode){
       const c = document.createElement('canvas');
       c.width = Math.round((r.w+2*pad)*k); c.height = Math.round((r.h+2*pad)*k);
       const g = c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height);
-      g.drawImage(cv, r.x-pad, r.y-pad, r.w+2*pad, r.h+2*pad, 0, 0, c.width, c.height);
+      g.drawImage(maskRedInk(cv), r.x-pad, r.y-pad, r.w+2*pad, r.h+2*pad, 0, 0, c.width, c.height);
       if(S.engine==='gemini' && S.key){
         try{ text = (await geminiRead(c, true)).map(b => b.text).join('，'); }
         catch(e){ toast('Gemini 辨識失敗，改用免費辨識。'); }
@@ -2751,7 +2830,7 @@ function normalizeCircledForTts(s){
 }
 
 function toSpeech(raw){
-  let t = cleanText(raw);
+  let t = stripAnswers(cleanText(raw));
   t = t.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
   if(S.skipZy){
     t = t.replace(/([\u4e00-\u9fff])[ㄅ-ㄯㆠ-ㆿˊˇˋ˙]{1,4}/g, '$1');
