@@ -1,0 +1,2929 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>評量報讀小幫手 Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<style>
+/* 版面：上方工具列 + 教師上傳派卷區 / 中間考卷（每小題・每選項獨立框）+ 即時放大字幕列 + 底部朗讀控制列 */
+:root{
+  --desk:#e6ecef; --paper:#ffffff; --ink:#1c2a33; --muted:#5a6a74; --line:#cfd8dd;
+  --accent:#0f7b6c; --accent-hover:#0b6155; --accent-ink:#ffffff; --accent-soft:#d6efe9;
+  --indigo:#3b5bdb; --indigo-soft:#e7ecff;
+  --mark:rgba(255,212,59,.45); --mark-solid:#ffe066; --mark-edge:#e0a800; --danger:#b3361f; --danger-soft:#fdecea;
+  --box:rgba(15,123,108,.09); --box-edge:rgba(15,123,108,.62);
+  --sub-bg:rgba(255,255,255,.97);
+  --font-display:"Huninn","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --font-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --r:14px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --desk:#11181d; --paper:#1a242b; --ink:#e5edf1; --muted:#97a7b0; --line:#2c3a43;
+  --accent:#3cc2a9; --accent-hover:#55d2ba; --accent-ink:#0b1a17; --accent-soft:#1d3b36;
+  --indigo:#748ffc; --indigo-soft:#1f2a48;
+  --mark:rgba(255,212,59,.35); --mark-solid:#ffd43b; --mark-edge:#ffd43b; --danger:#ff8a70; --danger-soft:#3b1d19;
+  --box:rgba(60,194,169,.12); --box-edge:rgba(60,194,169,.68);
+  --sub-bg:rgba(26,36,43,.97);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --desk:#11181d; --paper:#1a242b; --ink:#e5edf1; --muted:#97a7b0; --line:#2c3a43;
+  --accent:#3cc2a9; --accent-hover:#55d2ba; --accent-ink:#0b1a17; --accent-soft:#1d3b36;
+  --indigo:#748ffc; --indigo-soft:#1f2a48;
+  --mark:rgba(255,212,59,.35); --mark-solid:#ffd43b; --mark-edge:#ffd43b; --danger:#ff8a70; --danger-soft:#3b1d19;
+  --box:rgba(60,194,169,.12); --box-edge:rgba(60,194,169,.68);
+  --sub-bg:rgba(26,36,43,.97);
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--desk);color:var(--ink);font:16px/1.6 var(--font-body);
+  padding-left:max(12px,env(safe-area-inset-left,0px));
+  padding-right:max(12px,env(safe-area-inset-right,0px));
+  padding-bottom:calc(168px + env(safe-area-inset-bottom,0px));
+  -webkit-tap-highlight-color:transparent;
+}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer;transition:transform .08s ease,background-color .15s ease,border-color .15s ease}
+button:active:not(:disabled){transform:scale(.97)}
+:focus-visible{outline:3px solid var(--mark-edge);outline-offset:2px}
+[hidden]{display:none!important}
+
+/* 頂部標題與主要操作列 */
+header.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-block:12px 6px;max-width:1180px;margin:0 auto}
+.brand{font-family:var(--font-display);font-size:1.5rem;letter-spacing:.03em;margin:0;flex:1 1 200px;min-width:0;display:flex;align-items:center;gap:10px}
+.brand-badge{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;background:var(--accent);color:var(--accent-ink);font-size:1.3rem;flex:none;box-shadow:0 2px 6px rgba(15,123,108,.25)}
+.brand-txt{min-width:0}
+.brand small{display:block;font-family:var(--font-body);font-size:.8rem;color:var(--muted);letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;border:2px solid var(--line);background:var(--paper);font-family:var(--font-display);font-size:1rem;white-space:nowrap;touch-action:manipulation}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover:not(:disabled){background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.indigo{background:var(--indigo);border-color:var(--indigo);color:#fff}
+.btn.on{background:var(--mark);border-color:var(--mark-edge);color:var(--ink)}
+.btn.danger{color:var(--danger);border-color:var(--line)}
+.btn.danger:hover:not(:disabled){background:var(--danger-soft);border-color:var(--danger)}
+.btn:disabled{opacity:.42;cursor:default}
+.btn.icon{width:44px;padding:0;font-size:1.12rem}
+.btn.sm{min-height:35px;padding:0 11px;font-size:.9rem}
+
+.cnt-badge{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:rgba(255,255,255,.25);font-size:.82rem}
+
+/* 學生鎖定模式解鎖鈕 */
+.lock-pill{position:relative;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;font-size:.9rem;min-height:42px;padding:0 14px;border-style:dashed}
+.lock-pill .fill{position:absolute;inset:0;width:0%;background:var(--mark);transition:width .05s linear;pointer-events:none;z-index:0}
+.lock-pill span{position:relative;z-index:1}
+
+/* 選項列與報讀速度控制列 */
+.opts{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;max-width:1180px;margin:0 auto;padding-block:6px 12px;color:var(--muted);font-size:.93rem}
+.seg{display:inline-flex;border:2px solid var(--line);border-radius:999px;overflow:hidden;background:var(--paper)}
+.seg button{border:0;background:transparent;min-height:38px;padding:0 12px;font-family:var(--font-display);font-size:.95rem;touch-action:manipulation}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.speed-box{
+  display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px;
+  background:var(--paper);border:2px solid var(--line);border-radius:999px;
+  padding:3px 10px;color:var(--ink);
+}
+.speed-box .lbl{font-family:var(--font-display);font-size:.92rem;color:var(--muted);margin-right:2px}
+.speed-box input[type=range]{width:110px;accent-color:var(--accent);cursor:pointer}
+.speed-step{
+  border:1.5px solid var(--line);background:var(--desk);border-radius:999px;
+  min-width:32px;height:30px;padding:0 8px;font-family:var(--font-display);font-size:.86rem;
+  touch-action:manipulation;
+}
+.speed-step:hover{border-color:var(--accent);background:var(--accent-soft)}
+.speed-presets{display:inline-flex;gap:4px;align-items:center}
+.speed-pill{
+  border:1.5px solid var(--line);background:transparent;border-radius:999px;
+  height:28px;padding:0 8px;font-family:var(--font-display);font-size:.8rem;color:var(--muted);
+  touch-action:manipulation;
+}
+.speed-pill:hover{border-color:var(--accent);color:var(--ink)}
+.speed-pill[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.rate-val{font-variant-numeric:tabular-nums;min-width:3.2em;text-align:center;color:var(--accent);font-family:var(--font-display);font-weight:700}
+.status-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;background:var(--accent-soft);color:var(--ink);font-size:.82rem;font-family:var(--font-display)}
+.status-chip.live{background:#d3f9d8;color:#1b4332}
+:root[data-theme="dark"] .status-chip.live{background:#1b4332;color:#b7e4c7}
+
+main{max-width:1180px;margin:0 auto;display:grid;gap:16px}
+
+/* ================= 📚 教師上傳考卷 & 學生專屬 QR Code 派卷區 ================= */
+.cabinet{
+  background:var(--paper);border-radius:var(--r);padding:20px 22px;
+  border:2px solid var(--indigo);box-shadow:0 6px 24px rgba(59,91,219,.08);
+  display:grid;gap:16px;
+}
+.cab-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.cab-head h2{font-family:var(--font-display);font-weight:400;font-size:1.35rem;margin:0;display:flex;align-items:center;gap:8px}
+.cab-desc{margin:0;color:var(--muted);font-size:.92rem}
+
+.upload-box{
+  background:var(--indigo-soft);border:2px dashed var(--indigo);border-radius:12px;
+  padding:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+}
+.upload-box input[type=text],.upload-box select{
+  min-height:42px;border-radius:10px;border:2px solid var(--line);
+  background:var(--paper);padding:0 12px;color:var(--ink);
+}
+.upload-box .f-title{flex:1 1 220px}
+
+.exam-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.exam-card{
+  background:var(--desk);border:2px solid var(--line);border-radius:14px;
+  padding:14px;display:grid;gap:10px;align-content:space-between;transition:border-color .15s;
+}
+.exam-card.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.exam-card-top{display:flex;gap:12px;align-items:flex-start}
+.exam-qr-mini{
+  background:#fff;padding:6px;border-radius:8px;border:1px solid var(--line);
+  width:96px;height:96px;flex:none;display:grid;place-items:center;cursor:pointer;
+}
+.exam-qr-mini canvas,.exam-qr-mini img{max-width:100%!important;height:auto!important}
+.exam-meta{flex:1 1 auto;min-width:0}
+.exam-meta h3{margin:0 0 4px;font-family:var(--font-display);font-size:1.08rem;word-break:break-word}
+.exam-meta .tags{display:flex;flex-wrap:wrap;gap:4px;font-size:.8rem;color:var(--muted)}
+.exam-meta .tag{background:var(--paper);padding:2px 8px;border-radius:99px;border:1px solid var(--line)}
+.exam-acts{display:flex;flex-wrap:wrap;gap:6px;padding-top:6px;border-top:1px solid var(--line)}
+.cab-empty{text-align:center;padding:18px;color:var(--muted);font-size:.95rem;background:var(--desk);border-radius:12px}
+
+/* 首頁單機快速引導卡 */
+.empty{background:var(--paper);border-radius:var(--r);padding:24px 22px;display:grid;gap:16px;border:2px dashed var(--line);transition:border-color .2s,background-color .2s}
+.empty.dragover{border-color:var(--accent);background:var(--accent-soft)}
+.empty h2{font-family:var(--font-display);font-weight:400;font-size:1.4rem;margin:0;text-wrap:balance}
+.empty .big{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.empty .big .btn{min-height:76px;font-size:1.22rem;border-radius:var(--r)}
+.empty .tips{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px}
+.tip-card{background:var(--desk);border-radius:12px;padding:11px 14px;font-size:.9rem;color:var(--ink)}
+.tip-card b{display:block;font-family:var(--font-display);font-size:.98rem;margin-bottom:3px;color:var(--accent)}
+kbd{font-family:var(--font-display);background:var(--accent-soft);border-radius:6px;padding:1px 6px;color:var(--ink);font-size:.9em}
+
+/* 目前考卷名稱橫幅（學生掃碼後清楚確認自己的考卷） */
+.exam-banner{
+  background:var(--accent-soft);border:2px solid var(--accent);border-radius:12px;
+  padding:8px 14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;
+  font-family:var(--font-display);font-size:1.05rem;
+}
+
+/* 考卷上方檢視與校對工具條 */
+.paper-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px}
+.paper-bar .grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.zoom-readout{font-variant-numeric:tabular-nums;min-width:3.6em;text-align:center;font-family:var(--font-display);font-size:.95rem}
+
+/* 考卷滾動容器與畫布疊層（極細拆解：不遮字小圓標） */
+.paper-scroll{
+  width:100%;overflow:auto;border-radius:10px;
+  box-shadow:0 1px 3px rgba(0,0,0,.08),0 10px 28px rgba(0,0,0,.08);
+  background:var(--desk);
+}
+.paper-scroll.zoomed{max-height:76vh;border:2px solid var(--line)}
+.paper{position:relative;background:#fff;margin:0 auto;user-select:none;-webkit-user-select:none;transform-origin:top left}
+.paper canvas{display:block;width:100%;height:auto;background:#fff}
+.overlay{position:absolute;inset:0}
+.overlay.selecting{cursor:crosshair;touch-action:none;background:rgba(0,0,0,.04)}
+
+.blk{
+  position:absolute;border:1.8px solid var(--box-edge);background:var(--box);
+  border-radius:5px;padding:0;cursor:pointer;touch-action:manipulation;
+  transition:background .08s,box-shadow .08s,border-color .08s;
+}
+.blk:hover{background:var(--mark);z-index:6}
+.blk.reading{
+  background:var(--mark);border-color:var(--mark-edge);border-width:2.5px;
+  box-shadow:0 0 0 4px rgba(255,212,59,.42);z-index:8;
+}
+/* 精緻懸浮題號小圓標：置於框線左上外緣，絕不遮擋短選項文字與注音！ */
+.blk .n{
+  position:absolute;top:-10px;left:-3px;min-width:19px;height:19px;padding:0 5px;
+  border-radius:999px;background:var(--accent);color:var(--accent-ink);
+  font:700 11px/19px var(--font-display);text-align:center;pointer-events:none;
+  box-shadow:0 1px 3px rgba(0,0,0,.22);
+}
+.blk.reading .n{background:var(--mark-edge);color:#111;transform:scale(1.12)}
+.blk.v .n{left:auto;right:-3px}
+.overlay.selecting .blk{pointer-events:none}
+.selrect{position:absolute;border:3px dashed var(--danger);background:rgba(255,212,59,.22);pointer-events:none;border-radius:4px;z-index:10}
+.hint{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:0 0 10px;padding:10px 14px;border-radius:12px;background:var(--mark);color:var(--ink);font-family:var(--font-display)}
+
+/* 教師文字校對清單 */
+.texts{margin-top:14px;background:var(--paper);border-radius:var(--r);padding:8px 16px 16px;border:1px solid var(--line)}
+.texts summary{cursor:pointer;padding:10px 0;font-family:var(--font-display);font-size:1.05rem;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.texts-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.texts ol{margin:0;padding:0;list-style:none;display:grid;gap:7px;max-height:460px;overflow-y:auto}
+.texts li{
+  display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;
+  padding:7px 10px;border-radius:10px;line-height:1.6;
+  background:var(--desk);border:2px solid transparent;
+}
+.texts li.reading{background:var(--mark);border-color:var(--mark-edge)}
+.texts .qidx{
+  flex:none;min-width:28px;height:28px;border-radius:8px;
+  background:var(--accent);color:var(--accent-ink);
+  font:700 .85rem/28px var(--font-display);text-align:center;margin-top:2px;
+}
+.texts .t{
+  flex:1 1 220px;outline:none;padding:3px 7px;border-radius:6px;
+  background:var(--paper);border:1px solid var(--line);min-height:32px;
+  user-select:text;-webkit-user-select:text;
+}
+.texts .t:focus{box-shadow:0 0 0 2px var(--accent);border-color:var(--accent)}
+.texts .item-acts{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:center}
+.texts .mini{
+  border:1px solid var(--line);background:var(--paper);border-radius:8px;
+  padding:0 7px;min-height:30px;font-size:.84rem;font-family:var(--font-display);
+}
+.texts .mini:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft)}
+.texts .mini.del:hover:not(:disabled){border-color:var(--danger);background:var(--danger-soft);color:var(--danger)}
+.texts p.foot-note{color:var(--muted);font-size:.86rem;margin:10px 0 0}
+
+/* 即時放大字幕列 */
+.subbar{
+  position:fixed;left:0;right:0;
+  bottom:calc(68px + env(safe-area-inset-bottom,0px));
+  z-index:22;pointer-events:none;
+  padding:0 max(12px,env(safe-area-inset-right,0px)) 8px max(12px,env(safe-area-inset-left,0px));
+}
+.subbar .box{
+  max-width:1180px;margin:0 auto;pointer-events:auto;
+  background:var(--sub-bg);backdrop-filter:blur(8px);
+  border:2px solid var(--mark-edge);border-radius:14px;
+  box-shadow:0 6px 24px rgba(0,0,0,.16);
+  padding:10px 14px;display:flex;align-items:flex-start;gap:10px;
+}
+.sub-tag{flex:none;background:var(--accent);color:var(--accent-ink);font-family:var(--font-display);font-size:.9rem;padding:3px 10px;border-radius:8px;margin-top:2px;white-space:nowrap}
+.sub-text{flex:1 1 auto;font-weight:700;line-height:1.55;max-height:3.2em;overflow-y:auto;word-break:break-word}
+.sub-text[data-sz="1"]{font-size:1.18rem}
+.sub-text[data-sz="2"]{font-size:1.45rem}
+.sub-text[data-sz="3"]{font-size:1.8rem}
+.sub-text mark{background:var(--mark-solid);color:#111;padding:0 3px;border-radius:4px}
+.sub-tools{flex:none;display:flex;gap:4px;align-items:center}
+
+/* 底部固定朗讀控制列 */
+.dock{
+  position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--paper);border-top:1px solid var(--line);
+  padding:9px max(10px,env(safe-area-inset-right,0px)) calc(9px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));
+  box-shadow:0 -2px 12px rgba(0,0,0,.05);
+}
+.dock .in{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center}
+.pg{font-variant-numeric:tabular-nums;font-family:var(--font-display);min-width:5.2em;text-align:center;font-size:.95rem}
+.dock .sp{flex:1 1 0}
+.dock .divider{width:1px;height:28px;background:var(--line);margin:0 2px}
+
+@media (max-width:760px){
+  .dock .sp,.dock .divider{display:none}
+  .dock .btn{min-height:42px;padding:0 11px;font-size:.94rem}
+  .dock .btn.icon{width:42px;padding:0}
+  .brand{font-size:1.28rem}
+  .subbar{bottom:calc(112px + env(safe-area-inset-bottom,0px))}
+}
+
+/* 全螢幕拖放提示、忙碌遮罩與吐司 */
+.drop-mask{position:fixed;inset:12px;z-index:60;border-radius:20px;border:4px dashed var(--accent);background:rgba(15,123,108,.14);backdrop-filter:blur(3px);display:grid;place-items:center;pointer-events:none;font:1.5rem var(--font-display);color:var(--ink)}
+.drop-mask div{background:var(--paper);padding:20px 32px;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.15)}
+.busy{position:fixed;inset:0;z-index:55;display:grid;place-items:center;background:rgba(10,20,25,.38)}
+.busy .card{background:var(--paper);border-radius:var(--r);padding:22px 26px;display:flex;gap:14px;align-items:center;max-width:min(440px,90vw);font-family:var(--font-display);font-size:1.1rem;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.spin{width:30px;height:30px;border-radius:50%;border:4px solid var(--accent-soft);border-top-color:var(--accent);animation:sp 1s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(136px + env(safe-area-inset-bottom,0px));z-index:65;background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:12px;max-width:min(580px,92vw);font-size:.95rem;box-shadow:0 6px 20px rgba(0,0,0,.22);text-align:center}
+
+/* 對話框 */
+dialog{border:0;border-radius:var(--r);background:var(--paper);color:var(--ink);width:min(680px,94vw);max-height:90vh;padding:0;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+dialog::backdrop{background:rgba(10,20,25,.5)}
+.dlg{padding:20px 22px;display:grid;gap:15px}
+.dlg h2{font-family:var(--font-display);font-weight:400;margin:0;font-size:1.38rem;display:flex;align-items:center;justify-content:space-between}
+.dlg h3{margin:0 0 6px;font-size:1.02rem;color:var(--accent)}
+.dlg section{display:grid;gap:9px;border-top:1px solid var(--line);padding-top:14px}
+.dlg label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+.dlg input[type=text],.dlg input[type=password],.dlg select{width:100%;min-height:42px;border-radius:10px;border:2px solid var(--line);background:var(--desk);padding:0 10px;color:var(--ink)}
+.dlg .note{color:var(--muted);font-size:.88rem;margin:0}
+.dlg .warn{color:var(--danger);font-size:.88rem;margin:0;background:var(--danger-soft);padding:8px 10px;border-radius:8px}
+.dlg .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* 單張放大 QR 彈窗 */
+.big-qr-wrap{display:grid;justify-items:center;gap:12px;padding:10px 0;text-align:center}
+.big-qr-box{background:#fff;padding:16px;border-radius:16px;border:2px solid var(--line);line-height:0}
+.big-qr-title{font-family:var(--font-display);font-size:1.45rem;margin:0}
+.big-qr-url{word-break:break-all;font-size:.8rem;background:var(--desk);padding:8px 12px;border-radius:8px;max-width:100%}
+
+/* 列印學生專屬 QR Code 小卡專用樣式 */
+#printSheet{display:none}
+@media print{
+  body > *:not(#printSheet){display:none!important}
+  body{background:#fff!important;padding:0!important}
+  #printSheet{display:grid!important;grid-template-columns:repeat(2,1fr);gap:18px;padding:12px}
+  .p-card{border:2px solid #222;border-radius:12px;padding:16px;display:flex;gap:14px;align-items:center;break-inside:avoid;background:#fff;color:#000}
+  .p-qr{background:#fff;padding:4px;flex:none}
+  .p-info h3{margin:0 0 6px;font-size:1.25rem;font-family:var(--font-display)}
+  .p-info p{margin:0;font-size:.9rem;color:#444}
+}
+a{color:var(--accent)}
+</style>
+
+<!-- 核心函式庫：PDF.js / Tesseract.js / QRCode.js / LZ-String / PeerJS (點對點跨平板傳考卷) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+<header class="top">
+  <h1 class="brand">
+    <span class="brand-badge" aria-hidden="true">🔊</span>
+    <span class="brand-txt" id="headerTitleTxt">評量報讀小幫手<small>每一小題、改錯題與選項皆可獨立點讀・支援考卷 QR Code</small></span>
+  </h1>
+  <button class="btn indigo" id="bToggleCabinet" type="button" title="上傳各科考卷並產生考卷專屬 QR Code">
+    📚 考卷 QR 區 <span class="cnt-badge" id="cabCount">0</span>
+  </button>
+  <button class="btn primary" id="bCam" type="button">📷 拍考卷</button>
+  <button class="btn" id="bOpen" type="button">📄 開啟考卷</button>
+  <button class="btn" id="bLockToggle" type="button" title="切換為學生純淨模式">🎓 學生模式</button>
+  <button class="btn lock-pill" id="bUnlock" type="button" hidden title="長按 1.5 秒解鎖回老師模式">
+    <span class="fill" id="unlockFill"></span>
+    <span>🔒 學生模式（長按解鎖）</span>
+  </button>
+  <button class="btn icon" id="bTheme" type="button" aria-label="切換深淺色背景" title="切換深淺色背景">🌓</button>
+  <button class="btn icon" id="bSet" type="button" aria-label="老師設定" title="老師設定">⚙️</button>
+</header>
+
+<div class="opts">
+  <span class="seg" role="group" aria-label="文字排列">
+    <button type="button" data-dir="h" aria-pressed="true">橫式</button>
+    <button type="button" data-dir="v" aria-pressed="false">直式（國語）</button>
+    <button type="button" data-dir="auto" aria-pressed="false">自動判斷</button>
+  </span>
+  <div class="speed-box" role="group" aria-label="報讀速度調整">
+    <span class="lbl">報讀速度</span>
+    <button type="button" class="speed-step" id="bRateDown" title="放慢報讀速度 (-0.1)">🐢 慢</button>
+    <input id="rate" type="range" min="0.5" max="1.6" step="0.05" value="1" aria-label="報讀速度滑桿">
+    <span class="rate-val" id="rateVal">1.0 倍</span>
+    <button type="button" class="speed-step" id="bRateUp" title="加快報讀速度 (+0.1)">🐇 快</button>
+    <span class="speed-presets">
+      <button type="button" class="speed-pill" data-rate="0.75">0.75x</button>
+      <button type="button" class="speed-pill" data-rate="0.9">0.9x</button>
+      <button type="button" class="speed-pill" data-rate="1">1.0x</button>
+      <button type="button" class="speed-pill" data-rate="1.2">1.2x</button>
+    </span>
+  </div>
+  <span class="status-chip" id="layoutChip" hidden>↔ 橫式排列</span>
+  <span class="status-chip live" id="hostStatusChip" hidden>🟢 考卷連線就緒</span>
+</div>
+
+<main>
+  <!-- 📚 老師上傳考卷・考卷專屬 QR Code 專區 -->
+  <section class="cabinet" id="cabinetSection">
+    <div class="cab-head">
+      <div>
+        <h2>📚 老師上傳考卷・考卷 QR Code 區</h2>
+        <p class="cab-desc">老師可先輸入考卷名稱（例如：<b>三上國語期中考</b>）並上傳考卷 PDF 或照片，系統會產生該份考卷的 <b>QR Code</b>。學生用平板掃描後，上方就會顯示「三上國語期中考」並可逐題點讀！</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn sm" id="bPrintAllQr" type="button">🖨️ 列印全部考卷 QR Code</button>
+        <button class="btn sm" id="bHideCabinet" type="button">收合此區 ▲</button>
+      </div>
+    </div>
+
+    <div class="upload-box">
+      <input type="text" class="f-title" id="upTitle" placeholder="輸入考卷名稱（例如：三上國語期中考）">
+      <select id="upDir" aria-label="考卷排列方向">
+        <option value="v">直式考卷（國語直排）</option>
+        <option value="h" selected>橫式考卷（數學／自然／社會）</option>
+        <option value="auto">自動判斷方向</option>
+      </select>
+      <button class="btn indigo" id="bUploadExam" type="button">➕ 上傳考卷 PDF／照片並產生 QR Code</button>
+      <input type="file" id="fCabUpload" accept="application/pdf,image/*" multiple hidden>
+    </div>
+
+    <div id="examGrid" class="exam-grid"></div>
+  </section>
+
+  <!-- 尚未開啟考卷時的單機快速入口 -->
+  <section class="empty" id="empty">
+    <h2>現場直接開卷報讀（或使用上方「考卷 QR 區」讓學生掃碼領卷）</h2>
+    <div class="big">
+      <button class="btn primary" id="bCam2" type="button">📷 直接拍考卷報讀</button>
+      <button class="btn" id="bOpen2" type="button">📄 直接開啟 PDF／圖片</button>
+    </div>
+    <div class="tips">
+      <div class="tip-card">
+        <b>✨ 每小題、國語改錯題、選項皆獨立</b>
+        大題標題、是非選擇、<b>國語改錯題每一題</b>、子題 <kbd>(1)</kbd> <kbd>(2)</kbd> 與選項 <kbd>①</kbd>～<kbd>④</kbd> 皆有獨立框框，點哪題就唸哪題！
+      </div>
+      <div class="tip-card">
+        <b>📱 掃描考卷 QR Code 即開即讀</b>
+        老師在上方輸入考卷名稱（如「三上國語期中考」）上傳後，學生掃該卷 QR Code 就會直接顯示考卷名稱與內容。
+      </div>
+      <div class="tip-card">
+        <b>⌨️ 支援拖放檔案與貼上截圖</b>
+        可直接把 PDF／圖片<b>拖曳進視窗</b>，或截圖後按 <kbd>Ctrl</kbd>+<kbd>V</kbd> 直接貼上考卷畫面。
+      </div>
+    </div>
+  </section>
+
+  <!-- 考卷檢視與點讀區 -->
+  <section id="viewer" hidden>
+    <div class="exam-banner" id="examBanner" hidden>
+      <span id="examBannerTitle">📄 目前考卷</span>
+      <button class="btn sm" id="bSaveToCabEdits" type="button" hidden>💾 將校對結果同步回派卷區</button>
+    </div>
+
+    <div class="paper-bar" style="margin-top:8px">
+      <div class="grp">
+        <button class="btn sm" id="bZoomOut" type="button" title="縮小考卷">🔍－</button>
+        <button class="btn sm zoom-readout" id="bZoomReset" type="button" title="點擊恢復 100% 寬度">100%</button>
+        <button class="btn sm" id="bZoomIn" type="button" title="放大考卷">🔍＋</button>
+        <button class="btn sm" id="bEnhance" type="button" hidden title="切換拍照去陰影增白清晰化">✨ 清晰增強：開</button>
+        <button class="btn sm" id="bRot" type="button" hidden title="順時針旋轉照片 90 度">⟳ 轉向</button>
+      </div>
+      <div class="grp" id="teacherPaperTools">
+        <button class="btn sm" id="bAddBlk" type="button" title="在考卷上手動框出一個新小題框">➕ 新增小題框</button>
+        <button class="btn sm" id="bReOcr" type="button" title="清除本頁快取並重新細分辨識">🔄 重新辨識本頁</button>
+      </div>
+    </div>
+
+    <div class="hint" id="selHint" hidden>
+      <span id="selHintText">✋ 用手指或滑鼠拖曳，把要聽的文字框起來就會立刻朗讀。</span>
+      <button class="btn sm" id="bCancelMode" type="button">結束框選</button>
+    </div>
+
+    <div class="paper-scroll" id="paperScroll">
+      <div class="paper" id="paper">
+        <canvas id="cv"></canvas>
+        <div class="overlay" id="ov"></div>
+      </div>
+    </div>
+
+    <details class="texts" id="texts">
+      <summary>
+        <span>📝 辨識出來的小題與選項清單（老師可修改文字、拆開或合併細項）</span>
+        <span class="status-chip" id="blkCountChip">0 個項目</span>
+      </summary>
+      <div class="texts-tools">
+        <button class="btn sm" id="bSplitAllSub" type="button">✂️ 自動細分所有小題與選項</button>
+        <button class="btn sm" id="bExportJson" type="button">💾 匯出校對檔</button>
+        <button class="btn sm" id="bImportJson" type="button">📂 匯入校對檔</button>
+        <button class="btn sm danger" id="bResetEdits" type="button" style="margin-left:auto">還原本頁原始辨識</button>
+      </div>
+      <ol id="textList"></ol>
+      <p class="foot-note">💡 每一小題與選項皆已拆為獨立項目；若想把某兩項合在一起唸可按「🔗 合併下項」，若某行還有多個小題想拆開可按「✂️ 拆開」。修改自動存檔。</p>
+    </details>
+  </section>
+</main>
+
+<!-- 列印全部學生 QR Code 小卡專用容器 -->
+<section id="printSheet" aria-hidden="true"></section>
+
+<!-- 即時放大字幕列 -->
+<aside class="subbar" id="subBar" hidden aria-live="polite">
+  <div class="box">
+    <span class="sub-tag" id="subTag">第 1 項</span>
+    <div class="sub-text" id="subText" data-sz="2"></div>
+    <div class="sub-tools">
+      <button class="btn sm" id="bSubSize" type="button" title="切換字幕字體大小">字級</button>
+      <button class="btn sm" id="bSubClose" type="button" aria-label="隱藏字幕列">✕</button>
+    </div>
+  </div>
+</aside>
+
+<!-- 底部固定朗讀控制列 -->
+<nav class="dock" aria-label="朗讀控制">
+  <div class="in">
+    <button class="btn icon" id="bPrev" type="button" aria-label="上一頁" title="上一頁 (PageUp)">◀</button>
+    <span class="pg" id="pg">－</span>
+    <button class="btn icon" id="bNext" type="button" aria-label="下一頁" title="下一頁 (PageDown)">▶</button>
+
+    <span class="divider"></span>
+    <span class="sp"></span>
+
+    <button class="btn icon" id="bPrevQ" type="button" aria-label="上一小題" title="上一小題 (←)">⏮</button>
+    <button class="btn primary" id="bPlayPause" type="button" title="播放或暫停 (空白鍵)">🔊 整頁連讀</button>
+    <button class="btn icon" id="bReplay" type="button" aria-label="重聽本項" title="重聽本小題 (R)">🔁</button>
+    <button class="btn icon" id="bNextQ" type="button" aria-label="下一小題" title="下一小題 (→)">⏭</button>
+    <button class="btn" id="bStop" type="button" title="停止朗讀 (Esc)">⏹ 停止</button>
+    <button class="btn" id="bSel" type="button" title="用手指圈選任意區域立刻朗讀">✋ 框選朗讀</button>
+  </div>
+</nav>
+
+<input type="file" id="fOpen" accept="application/pdf,image/*" multiple hidden>
+<input type="file" id="fCam" accept="image/*" capture="environment" hidden>
+<input type="file" id="fJson" accept="application/json,.json" hidden>
+
+<div class="drop-mask" id="dropMask" hidden><div>📥 放開滑鼠即可載入考卷 PDF 或圖片</div></div>
+<div class="busy" id="busy" hidden><div class="card"><span class="spin"></span><span id="busyText">處理中…</span></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<!-- 單份考卷 QR Code 放大彈窗 -->
+<dialog id="qrDlg">
+  <div class="dlg">
+    <h2>
+      <span>📱 考卷專屬 QR Code</span>
+      <button type="button" class="btn sm" id="bCloseQrDlg">✕</button>
+    </h2>
+    <div class="big-qr-wrap">
+      <p class="big-qr-title" id="bigQrTitle">三上國語期中考</p>
+      <p class="note" id="bigQrHint">學生使用平板相機掃描下方 QR Code，就會直接顯示這份考卷名稱與內容並可逐題報讀（考試期間請保持老師這台電腦的網頁開啟）。</p>
+      <div class="big-qr-box" id="bigQrBox"></div>
+      <code class="big-qr-url" id="bigQrUrl"></code>
+      <div class="row" style="justify-content:center">
+        <button type="button" class="btn primary" id="bCopyBigQr">📋 複製此考卷連結</button>
+        <button type="button" class="btn" id="bPrintSingleQr">🖨️ 列印這張考卷 QR Code</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<!-- 老師設定對話框 -->
+<dialog id="dlg">
+  <form method="dialog" class="dlg">
+    <h2>
+      <span>⚙️ 老師設定</span>
+      <button type="submit" class="btn sm" value="close">✕</button>
+    </h2>
+
+    <section>
+      <h3>1. 文字辨識方式（掃描檔／拍考卷時使用）</h3>
+      <label><input type="radio" name="eng" value="tess" id="engTess"> <span><b>免費本機辨識（Tesseract）</b>：在裝置上直接辨識，免帳號，自動細分每一小題與選項。</span></label>
+      <label><input type="radio" name="eng" value="gemini" id="engGem"> <span><b>Gemini AI 智慧辨識（推薦複雜考卷）</b>：支援雙欄、直橫混排、含注音與表格考卷，精準拆出每一小題與選項座標。需填入 Gemini 金鑰。</span></label>
+      <input type="password" id="apiKey" placeholder="貼上您的 Gemini 金鑰" autocomplete="off">
+      <div class="row">
+        <span class="note">Gemini 模型：</span>
+        <select id="modelPreset" style="flex:1 1 200px">
+          <option value="gemini-2.5-flash">gemini-2.5-flash（推薦：速度快、辨識準）</option>
+          <option value="gemini-2.5-pro">gemini-2.5-pro（最高精度：複雜圖表考卷）</option>
+          <option value="gemini-2.0-flash">gemini-2.0-flash（輕量快速）</option>
+          <option value="custom">自訂模型名稱…</option>
+        </select>
+        <input type="text" id="modelCustom" placeholder="輸入自訂模型名稱" style="flex:1 1 160px" hidden>
+      </div>
+      <p class="note">取得免費金鑰：前往 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> 建立後貼上，僅儲存在本機瀏覽器。</p>
+    </section>
+
+    <section>
+      <h3>2. 報讀與小題細分規則</h3>
+      <label><input type="checkbox" id="optFineSplit"> <span><b>極細拆解模式</b>：除了每一小題獨立外，連同列並排的子題與選擇題 <kbd>① ② ③ ④</kbd> 每個選項也各自拆成獨立框框可單點</span></label>
+      <label><input type="checkbox" id="optZy"> <span><b>智慧過濾國字旁小注音</b>（保留單獨考注音的題目與選項，不誤刪注音題！）</span></label>
+      <label><input type="checkbox" id="optMath"> <span><b>考卷符號、分數與單位唸成中文</b>（如 □ 唸「方格」、3/4 唸「4分之3」、cm² 唸「平方公分」、＋－×÷＝）</span></label>
+      <label><input type="checkbox" id="optSub"> <span><b>朗讀時顯示下方放大字幕列</b></span></label>
+      <label><input type="checkbox" id="optPhotoEnhance"> <span><b>拍照自動去陰影清晰化</b></span></label>
+    </section>
+
+    <section>
+      <h3>3. 學生模式保護</h3>
+      <div class="row">
+        <span class="note">學生模式解鎖密碼（選填）：</span>
+        <input type="text" id="lockPin" placeholder="留空則長按 1.5 秒即可解鎖；可設 4 碼數字" style="flex:1 1 220px" maxlength="8">
+      </div>
+      <label><input type="checkbox" id="incKeyInCab"> <span>派卷給學生時，若學生端需要手動框選辨識，允許一併帶入 Gemini 設定</span></label>
+    </section>
+
+    <section>
+      <div class="row">
+        <button type="button" class="btn danger" id="bClearAllCache">清除本機快取紀錄</button>
+        <button type="submit" class="btn primary" value="ok" style="margin-left:auto">儲存設定</button>
+      </div>
+    </section>
+  </form>
+</dialog>
+
+<script>
+"use strict";
+
+/* ================= 狀態與本機儲存 ================= */
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('erh_'+k); return v===null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('erh_'+k, JSON.stringify(v)); }catch(e){} },
+  delPrefix(p){
+    try{
+      const keys = [];
+      for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.startsWith(p)) keys.push(k); }
+      keys.forEach(k => localStorage.removeItem(k));
+    }catch(e){}
+  }
+};
+
+function genRandomId(prefix='id'){
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  let s = '';
+  for(let i=0;i<8;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  return prefix + '-' + s;
+}
+
+const PRESET_MODELS = ['gemini-2.5-flash','gemini-2.5-pro','gemini-2.0-flash'];
+
+let teacherRoomId = store.get('roomId', '');
+if(!teacherRoomId){ teacherRoomId = genRandomId('erh'); store.set('roomId', teacherRoomId); }
+
+const S = {
+  docId: 'session',
+  activeCabExamId: null, // 若目前開啟的是派卷區裡的某份考卷
+  examTitle: '',
+  pages: [],             // {kind:'pdf', num} | {kind:'img', rawCanvas, enhancedCanvas, useEnhance, rot}
+  pdf: null,
+  cur: 0,
+  zoom: 1,
+  cache: new Map(),
+  blocks: [],
+  curBlockIdx: -1,
+  lastSpoken: null,
+  speaking: false,
+  paused: false,
+  dir: store.get('dir', 'h'),
+  fineSplit: store.get('fineSplit', true),
+  engine: store.get('engine', 'tess'),
+  key: store.get('key', ''),
+  model: store.get('model', 'gemini-2.5-flash'),
+  skipZy: store.get('skipZy', true),
+  mathWords: store.get('mathWords', true),
+  showSub: store.get('showSub', true),
+  subSize: store.get('subSize', 2),
+  photoEnhance: store.get('photoEnhance', true),
+  lockPin: store.get('lockPin', ''),
+  incKeyInCab: store.get('incKeyInCab', false),
+  studentMode: false,
+  theme: store.get('theme', 'auto'),
+  rate: store.get('rate', 1.0),
+  dragMode: null,
+  renderToken: 0,
+  incomingRoom: '',
+  incomingExamId: '',
+  hashFallbackBlocks: null
+};
+if(S.model === 'gemini-flash-latest') S.model = 'gemini-2.5-flash';
+
+/* ================= 解析網址參數（支援學生掃碼自動領卷） ================= */
+(function readParams(){
+  const p = new URLSearchParams(location.search);
+  if(['h','v','auto'].includes(p.get('dir'))) S.dir = p.get('dir');
+  if(['tess','gemini'].includes(p.get('engine'))) S.engine = p.get('engine');
+  if(p.get('zy') !== null) S.skipZy = p.get('zy') === '1';
+  if(p.get('math') !== null) S.mathWords = p.get('math') === '1';
+  if(p.get('sub') !== null) S.showSub = p.get('sub') === '1';
+  if(p.get('rate') !== null){
+    const rv = parseFloat(p.get('rate'));
+    if(Number.isFinite(rv) && rv >= 0.5 && rv <= 1.6) S.rate = Math.round(rv * 20) / 20;
+  }
+  if(p.get('student') === '1') S.studentMode = true;
+  if(p.get('pin')) S.lockPin = p.get('pin');
+  if(p.get('title')) S.examTitle = p.get('title');
+  if(p.get('room') && p.get('exam')){
+    S.incomingRoom = p.get('room');
+    S.incomingExamId = p.get('exam');
+  }
+  if(p.get('k')){
+    S.key = p.get('k');
+    p.delete('k');
+    try{ history.replaceState(null, '', location.pathname + (p.toString() ? '?'+p.toString() : '') + location.hash); }catch(e){}
+  }
+  // 解析 Hash 離線備援題目包 #q=...
+  if(location.hash.startsWith('#q=') && window.LZString){
+    try{
+      const raw = LZString.decompressFromEncodedURIComponent(location.hash.slice(3));
+      if(raw) S.hashFallbackBlocks = JSON.parse(raw);
+    }catch(e){}
+  }
+  S.autoPdf = p.get('pdf') || '';
+})();
+
+/* ================= IndexedDB 考卷資料庫（儲存多份考卷與學生端離線快取） ================= */
+const ExamDB = {
+  _db: null,
+  open(){
+    if(this._db) return Promise.resolve(this._db);
+    return new Promise((res, rej) => {
+      const req = indexedDB.open('erh_exam_cabinet_v1', 1);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if(!db.objectStoreNames.contains('exams')) db.createObjectStore('exams', { keyPath:'id' });
+        if(!db.objectStoreNames.contains('student_cache')) db.createObjectStore('student_cache', { keyPath:'id' });
+      };
+      req.onsuccess = () => { this._db = req.result; res(this._db); };
+      req.onerror = () => rej(req.error);
+    });
+  },
+  async getAll(storeName='exams'){
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const req = tx.objectStore(storeName).getAll();
+      req.onsuccess = () => res((req.result || []).sort((a,b) => (b.createdAt||0) - (a.createdAt||0)));
+      req.onerror = () => rej(req.error);
+    });
+  },
+  async get(id, storeName='exams'){
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const req = tx.objectStore(storeName).get(id);
+      req.onsuccess = () => res(req.result || null);
+      req.onerror = () => rej(req.error);
+    });
+  },
+  async put(record, storeName='exams'){
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(storeName, 'readwrite');
+      tx.objectStore(storeName).put(record);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+  },
+  async delete(id, storeName='exams'){
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(storeName, 'readwrite');
+      tx.objectStore(storeName).delete(id);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+  }
+};
+
+/* ================= 主題切換與通用工具 ================= */
+function applyTheme(){
+  if(S.theme === 'light' || S.theme === 'dark') document.documentElement.setAttribute('data-theme', S.theme);
+  else document.documentElement.removeAttribute('data-theme');
+  $('bTheme').textContent = S.theme === 'dark' ? '🌙' : S.theme === 'light' ? '☀️' : '🌓';
+}
+applyTheme();
+$('bTheme').addEventListener('click', () => {
+  S.theme = S.theme === 'auto' ? 'light' : S.theme === 'light' ? 'dark' : 'auto';
+  store.set('theme', S.theme); applyTheme();
+});
+
+let toastTimer;
+function toast(msg, ms=3400){
+  const t = $('toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, ms);
+}
+function busy(msg){
+  if(msg === false){ $('busy').hidden = true; return; }
+  $('busyText').textContent = msg; $('busy').hidden = false;
+}
+
+const VERT_PUNCT_MAP = {
+  '︵':'（','︶':'）','︷':'｛','︸':'｝','︹':'〔','︺':'〕','︻':'【','︼':'】',
+  '︽':'《','︾':'》','︿':'〈','﹀':'〉','﹁':'「','﹂':'」','﹃':'『','﹄':'』',
+  '︱':'—','︳':'—','︴':'～','︑':'、','︒':'。','﹑':'、','﹔':'；','﹕':'：','﹖':'？','﹗':'！'
+};
+const VERT_PUNCT_RE = /[︵︶︷︸︹︺︻︼︽︾︿﹀﹁﹂﹃﹄︱︳︴︑︒﹑﹔﹕﹖﹗]/g;
+function normVertPunct(s){ return (s||'').replace(VERT_PUNCT_RE, ch => VERT_PUNCT_MAP[ch] || ch); }
+
+const CJK = '\\u2E80-\\u2FFF\\u3000-\\u303F\\u3100-\\u312F\\u31A0-\\u31BF\\u3400-\\u9FFF\\uF900-\\uFAFF\\uFF00-\\uFFEF';
+const reCjkGap = new RegExp('(['+CJK+'])\\s+(?=['+CJK+'])','g');
+function cleanText(t){
+  let s = normVertPunct(t || '').replace(/[\u200b-\u200d\ufeff\u00ad]/g,'').replace(/[\r\n]+/g,' ');
+  s = s.replace(reCjkGap,'$1').replace(reCjkGap,'$1');
+  s = s.replace(/[\(（\[][\s]*[|｜lI丨!][\s]*[\)）\]]/g, '(1)');
+  s = s.replace(/(在|於|填入|寫在)\s*口\s*(裡|中|內)/g, '$1□$2');
+  return s.replace(/\s{2,}/g,' ').trim();
+}
+function joinText(a, b){
+  if(!a) return b; if(!b) return a;
+  const needSpace = (/[A-Za-z0-9]$/.test(a) && /^[A-Za-z0-9]/.test(b)) || /^[①-⑳❶-❿⑴-⑽]/.test(b);
+  return a + (needSpace ? ' ' : '') + b;
+}
+function meaningful(t){ return /[A-Za-z0-9ㄅ-ㄯ㐀-鿿①-⑳□]/.test(t || ''); }
+function median(arr, fb=16){
+  const v = arr.filter(x => Number.isFinite(x) && x > 0).sort((a,b)=>a-b);
+  if(!v.length) return fb;
+  const m = v.length >> 1;
+  return v.length % 2 ? v[m] : (v[m-1]+v[m])/2;
+}
+
+/* ================= 編輯紀錄持久化 ================= */
+function editStorageKey(pageIdx){ return 'erh_ed_' + S.docId + '_p' + pageIdx + '_' + S.dir + '_' + (S.fineSplit?1:0); }
+function savePageEdits(){
+  if(!S.pages.length) return;
+  const slim = S.blocks.map(b => ({x:Math.round(b.x), y:Math.round(b.y), w:Math.round(b.w), h:Math.round(b.h), text:b.text, dir:b.dir||'h'}));
+  try{ localStorage.setItem(editStorageKey(S.cur), JSON.stringify(slim)); }catch(e){}
+  S.cache.set(cacheKey(S.cur), S.blocks);
+  if(S.activeCabExamId) syncEditsToCabinetExam(S.activeCabExamId, S.cur, slim);
+}
+function loadPageEdits(pageIdx){
+  try{
+    const raw = localStorage.getItem(editStorageKey(pageIdx));
+    if(!raw) return null;
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) && arr.length ? arr : null;
+  }catch(e){ return null; }
+}
+
+/* ================= 極細拆解核心：每一小題、國語改錯題、子題、選擇題選項 ① ② ③ ④ 獨立切分 ================= */
+// 辨識行首是否帶一個或多個空白作答括號／方格（如「（　）」「（　）（　）」「□□」）
+const STARTS_BLANK_BRACKET = /^\s*(?:[（(【\[〔]\s*[＿_\s　]*[)）】\]〕]|[□▢◻⬜☐]){1,5}/;
+// 辨識句尾是否為已完成之「句號＋作答括號」改錯題（如「今天天氣真公圓。（　）」或「…。（　）（　）」），避免下一題被併入！
+const ENDS_COMPLETE_ITEM = /[。！？!?；]\s*(?:[（(【\[〔]\s*[＿_\s　]*[)）】\]〕]|[□▢◻⬜☐]){1,5}\s*$/;
+// 辨識大題標題（如「一、」「二、改錯字：」），避免與下方第一題黏合
+const SECTION_HEAD = /^\s*[一二三四五六七八九十壹貳參肆伍陸柒捌玖拾]{1,3}\s*[、.．:：]/;
+// 辨識行首是否為新題目、國語改錯題（含單/雙括號、無小數點題號如「（　）１今天…」「１（　）今天…」「1今天…」）、子題「(1)」、大題「一、」或選項「① / (A)」
+const QNUM = /^\s*(?:(?:[（(【\[〔]\s*[＿_\s　]*[)）】\]〕]|[□▢◻⬜☐]){1,5}|(?:[＿_]{2,}\s*)?(?:[一二三四五六七八九十壹貳參肆伍陸柒捌玖拾]{1,3}\s*[、.．:：]|[（(【\[][0-9０-９一二三四五六七八九十甲乙丙丁A-Da-d]{1,3}[)）】\]]|[0-9０-９]{1,3}\s*(?:[.．、)）:：]|(?=[（(【\[〔□]))|[１-９]{1,2}\s*(?=[\u4e00-\u9fff「『])|[1-9][0-9]?\s*(?![0-9.．\/／個隻顆瓶元角分歲秒時點刻天年月日週人位名本枝支張朵台輛架艘座棟間層樓次遍回倍種樣類件雙對副套組群包盒箱袋杯碗盤片塊條根粒滴尺寸里克斤噸升毫升度頁題行格折成號室班級隊步])(?=[\u4e00-\u9fff「『])|[①-⑳❶-❿➀-➈➊-➓⑴-⑽⒈-⒑]|[A-D][.．、)）]\s+))/;
+const ZHUYIN_ONLY_RE = /^[\u3105-\u3129\u31A0-\u31BF\u02CA\u02C7\u02CB\u02D9ˊˇˋ˙\s]+$/;
+
+function union(a, b){
+  const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+  return {x, y, w: Math.max(a.x+a.w, b.x+b.w) - x, h: Math.max(a.y+a.h, b.y+b.h) - y};
+}
+function overlap1d(a0,a1,b0,b1){ return Math.max(0, Math.min(a1,b1) - Math.max(a0,b0)); }
+
+/**
+ * 找出同一行／同一欄字串內部需要切開的「並列小題」「並列改錯題」或「選擇題選項」起始位置
+ * 支援：
+ * 1. 選項與子題：① ② ③ ④、(1) (2)、(A) (B)
+ * 2. 同列/同欄多題改錯字：
+ *    - 括號在前：「（　）1. … （　）2. …」或「（　）（　）１… （　）（　）２…」或「（　）今天…。（　）妹妹…。」
+ *    - 題號在前：「1.（　）… 2.（　）…」或「１（　）… ２（　）…」
+ *    - 括號在句尾：「今天天氣真公圓。（　） 妹妹心裡很著急。（　）」
+ */
+function findInlineSplitOffsets(str){
+  if(!S.fineSplit || !str || str.length < 4) return [];
+  const cuts = new Set();
+  const startsWithBlank = STARTS_BLANK_BRACKET.test(str);
+
+  // 規則 A：帶圈數字、帶括號子題/選項、帶空白括號+題號、題號+空白括號、或句號後緊接下一題號
+  const re = /(?:[①-⑳❶-❿➀-➈➊-➓⑴-⑽]|[（(]\s*[1-9１-９A-Da-d]\s*[)）]|(?:[（(【\[〔]\s*[＿_\s　]*[)）】\]〕]|[□▢◻⬜☐]){1,4}\s*[0-9０-９]{1,2}\s*[.．、]?|[0-9０-９]{1,2}\s*[.．、]?\s*(?:[（(【\[〔]\s*[＿_\s　]*[)）】\]〕]|[□▢◻⬜☐]){1,4}|[1-9１-９][0-9０-９]?\s*[.．、]\s*(?=[\u4e00-\u9fff「『]))/g;
+  let m;
+  while((m = re.exec(str)) !== null){
+    const idx = m.index;
+    if(idx <= 1) continue;
+    const prevChar = str[idx - 1];
+    const nextChar = str[idx + m[0].length] || '';
+    const prev2 = str.slice(Math.max(0, idx - 2), idx);
+    if(/[、～~至到和與及第]/.test(prevChar) || /^[、～~至到和與及]/.test(nextChar)) continue;
+    // 若是單純題號如 "2. 妹妹"，前面必須是句末標點或空白
+    if(/^[1-9１-９]/.test(m[0]) && !/[（(【\[〔□]/.test(m[0]) && !/[\s　。！？!?；）」』】\]]/.test(prevChar)) continue;
+    // 若是單純 (1)/(A) 開頭，前面需為空白或標點（避免切斷算式或數字）
+    if(/^[（(]/.test(m[0]) && !STARTS_BLANK_BRACKET.test(m[0]) && !/[\s　。！？；，：）」』】\]]/.test(prevChar) && !/^\s*[)）]/.test(prev2)) continue;
+    cuts.add(idx);
+  }
+
+  // 規則 B：無題號並列改錯題
+  if(startsWithBlank){
+    // 句首括號型：「（　）今天…。（　）妹妹…。」-> 在句號後的「（　）」切開
+    const reLeadBlank = /[。！？!?]\s*((?:[（(【\[〔]\s*[＿_\s　]*[)）】\]〕]|[□▢◻⬜☐]){1,4}\s*[\u4e00-\u9fff「『])/g;
+    while((m = reLeadBlank.exec(str)) !== null){
+      const cutPos = m.index + m[0].length - m[1].length;
+      if(cutPos > 1) cuts.add(cutPos);
+    }
+  } else {
+    // 句尾括號型：「今天…。（　）妹妹…。（　）」-> 在「。（　）」結束後切開（允許無空白緊接下一句）
+    const reTailBlank = /[。！？!?]\s*(?:[（(【\[〔]\s*[＿_\s　]*[)）】\]〕]|[□▢◻⬜☐]){1,4}\s*(?=[\u4e00-\u9fff0-9０-９①-⑳（(])/g;
+    while((m = reTailBlank.exec(str)) !== null){
+      const cutPos = m.index + m[0].length;
+      if(cutPos > 1 && cutPos < str.length - 1) cuts.add(cutPos);
+    }
+  }
+
+  return [...cuts].sort((a,b) => a - b);
+}
+
+// 將單一 OCR 行（無逐字座標時）依字元比例切分為多個獨立小題/選項區塊
+function splitLineBlockByInlineMarkers(lineObj, dir){
+  const text = cleanText(lineObj.text);
+  if(!text) return [];
+  const cuts = findInlineSplitOffsets(text);
+  if(!cuts.length) return [{...lineObj, text}];
+
+  const points = [0, ...cuts, text.length];
+  const totalLen = Math.max(1, text.length);
+  const res = [];
+  for(let i = 0; i < points.length - 1; i++){
+    const s = points[i], e = points[i+1];
+    const subText = text.slice(s, e).trim();
+    if(!subText || !meaningful(subText)) continue;
+    if(dir === 'v'){
+      const y0 = lineObj.y + (s / totalLen) * lineObj.h;
+      const h0 = Math.max(10, ((e - s) / totalLen) * lineObj.h);
+      res.push({ x:lineObj.x, y:y0, w:lineObj.w, h:h0, text:subText, conf:lineObj.conf });
+    } else {
+      const x0 = lineObj.x + (s / totalLen) * lineObj.w;
+      const w0 = Math.max(14, ((e - s) / totalLen) * lineObj.w);
+      res.push({ x:x0, y:lineObj.y, w:w0, h:lineObj.h, text:subText, conf:lineObj.conf });
+    }
+  }
+  return res.length ? res : [{...lineObj, text}];
+}
+
+function deduplicatePdfItems(items){
+  if(items.length < 2) return items;
+  const out = [];
+  for(const cur of items){
+    let dup = false;
+    for(let j = Math.max(0, out.length - 16); j < out.length; j++){
+      const prev = out[j];
+      if(prev.str === cur.str){
+        const tol = Math.max(3, Math.min(cur.w, cur.h) * 0.45);
+        if(Math.hypot((cur.x+cur.w/2)-(prev.x+prev.w/2), (cur.y+cur.h/2)-(prev.y+prev.h/2)) <= tol){
+          dup = true; break;
+        }
+      }
+    }
+    if(!dup) out.push(cur);
+  }
+  return out;
+}
+
+function filterPdfRubyZhuyin(items){
+  if(!S.skipZy || items.length < 3) return items;
+  const kanjis = items.filter(it => /[\u4e00-\u9fff]/.test(it.str));
+  if(kanjis.length < 2) return items;
+  const medSize = Math.max(median(kanjis.map(k => k.w), 16), median(kanjis.map(k => k.h), 16));
+  return items.filter(it => {
+    if(!ZHUYIN_ONLY_RE.test(it.str)) return true;
+    const sz = Math.max(it.w, it.h);
+    if(sz < medSize * 0.72){
+      const cx = it.x + it.w/2, cy = it.y + it.h/2;
+      const nearKanji = kanjis.some(k => Math.abs(cx - (k.x+k.w/2)) <= medSize * 1.35 && Math.abs(cy - (k.y+k.h/2)) <= medSize * 1.1);
+      if(nearKanji) return false;
+    }
+    return true;
+  });
+}
+
+// 依據逐字座標將一條 PDF 行精準切分為多個小題／選項框（座標 100% 貼合每個選項！）
+function splitPdfItemsLine(sortedItems, dir){
+  if(!sortedItems.length) return [];
+  let fullStr = '';
+  const charToItemIdx = [];
+  let prevRight = null;
+
+  for(let idx = 0; idx < sortedItems.length; idx++){
+    const it = sortedItems[idx];
+    if(dir === 'h' && prevRight !== null && it.x - prevRight > Math.max(2.5, it.h*0.32)){
+      // 明顯水平間距時補一個空白讓細分器能辨識欄位或並列小題間距
+      if(/[A-Za-z0-9.,!?:;)）]$/.test(fullStr) || /^[（(①-⑳❶-❿⑴-⑽A-Da-d0-9]/.test(it.str)){
+        fullStr += ' ';
+        charToItemIdx.push(idx);
+      }
+    }
+    for(const ch of it.str){
+      fullStr += ch;
+      charToItemIdx.push(idx);
+    }
+    prevRight = it.x + it.w;
+  }
+
+  const cuts = findInlineSplitOffsets(fullStr);
+  if(!cuts.length){
+    let box = {x:sortedItems[0].x, y:sortedItems[0].y, w:sortedItems[0].w, h:sortedItems[0].h};
+    for(let k=1;k<sortedItems.length;k++) box = union(box, sortedItems[k]);
+    return [{...box, text: cleanText(fullStr)}];
+  }
+
+  const pts = [0, ...cuts, fullStr.length];
+  const out = [];
+  for(let p = 0; p < pts.length - 1; p++){
+    let cStart = pts[p], cEnd = pts[p+1] - 1;
+    while(cStart <= cEnd && /\s/.test(fullStr[cStart])) cStart++;
+    while(cEnd >= cStart && /\s/.test(fullStr[cEnd])) cEnd--;
+    if(cStart > cEnd) continue;
+    const iStart = charToItemIdx[cStart];
+    const iEnd = charToItemIdx[cEnd];
+    const sliceItems = sortedItems.slice(iStart, iEnd + 1);
+    const subTxt = cleanText(fullStr.slice(cStart, cEnd + 1));
+    if(!sliceItems.length || !meaningful(subTxt)) continue;
+    let box = {x:sliceItems[0].x, y:sliceItems[0].y, w:sliceItems[0].w, h:sliceItems[0].h};
+    for(let k=1;k<sliceItems.length;k++) box = union(box, sliceItems[k]);
+    out.push({...box, text: subTxt});
+  }
+  return out;
+}
+
+function isStandaloneOptionOrShortSub(text){
+  return /^\s*(?:[①-⑳❶-❿➀-➈➊-➓⑴-⑽]|[（(][A-Da-d1-9１-９][)）])/.test(text);
+}
+
+function isCompleteSectionHead(text){
+  if(!SECTION_HEAD.test(text)) return false;
+  const opens = (text.match(/[（(]/g) || []).length;
+  const closes = (text.match(/[)）]/g) || []).length;
+  return opens <= closes;
+}
+
+function isFinishedUnnumberedSentence(text){
+  return !QNUM.test(text) && /[。！？!?][」』）)]?\s*$/.test(text);
+}
+
+function mergeHorizontalColumn(rows){
+  if(!rows.length) return [];
+  rows = [...rows].sort((a,b) => (a.y - b.y) || (a.x - b.x));
+  const avgH = median(rows.map(r => r.h), 20);
+  const out = [];
+  let cur = null;
+  for(const r of rows){
+    if(cur){
+      const gap = r.y - (cur.last.y + cur.last.h);
+      const sameRow = Math.abs(r.y - cur.last.y) < 0.45 * avgH;
+      const aligned = !sameRow && (Math.abs(r.x - cur.last.x) < 3.2*avgH || overlap1d(r.x, r.x+r.w, cur.x, cur.x+cur.w) > 0.45*Math.min(r.w, cur.w));
+      // 若上一行是大題標題、完整句尾括號改錯題、已完成之無題號獨立句（如表格框線型改錯題）、或下一行是新題號／空白作答括號開頭，絕不合併！
+      const canMerge = gap < 0.72*avgH && gap > -0.35*avgH && aligned
+        && !QNUM.test(r.text)
+        && !ENDS_COMPLETE_ITEM.test(cur.text)
+        && !isCompleteSectionHead(cur.text)
+        && !isFinishedUnnumberedSentence(cur.text)
+        && !(S.fineSplit && isStandaloneOptionOrShortSub(cur.text) && r.x > cur.x + avgH*3);
+      if(canMerge){
+        Object.assign(cur, union(cur, r));
+        cur.text = joinText(cur.text, r.text);
+        cur.last = r;
+        continue;
+      }
+      out.push(cur);
+    }
+    cur = {x:r.x, y:r.y, w:r.w, h:r.h, text:r.text, dir:'h', last:r};
+  }
+  if(cur) out.push(cur);
+  return out;
+}
+
+function orderHorizontalWithColumns(lines, pageW){
+  if(!pageW || lines.length < 6){
+    updateLayoutChip('h', false);
+    return mergeHorizontalColumn(lines).map(({last, ...b}) => b);
+  }
+  let bestSplit = -1, minCross = Infinity;
+  for(let ratio = 0.44; ratio <= 0.56; ratio += 0.02){
+    const sx = pageW * ratio;
+    let cross = 0, leftCnt = 0, rightCnt = 0;
+    for(const l of lines){
+      if(l.w > pageW * 0.56) continue;
+      if(l.x + l.w <= sx + pageW * 0.015) leftCnt++;
+      else if(l.x >= sx - pageW * 0.015) rightCnt++;
+      else cross++;
+    }
+    if(leftCnt >= 3 && rightCnt >= 3 && cross <= Math.max(1, lines.length * 0.06)){
+      if(cross < minCross){ minCross = cross; bestSplit = sx; }
+    }
+  }
+  if(bestSplit < 0){
+    updateLayoutChip('h', false);
+    return mergeHorizontalColumn(lines).map(({last, ...b}) => b);
+  }
+  updateLayoutChip('h', true);
+  const sortedY = [...lines].sort((a,b) => (a.y - b.y) || (a.x - b.x));
+  const sections = [];
+  let curSec = { spans:[], left:[], right:[] };
+  for(const l of sortedY){
+    const isSpan = l.w > pageW * 0.56 || (l.x < bestSplit - pageW*0.04 && l.x + l.w > bestSplit + pageW*0.04);
+    if(isSpan){
+      if(curSec.left.length || curSec.right.length){ sections.push(curSec); curSec = { spans:[], left:[], right:[] }; }
+      curSec.spans.push(l);
+    } else if((l.x + l.w/2) < bestSplit){
+      curSec.left.push(l);
+    } else {
+      curSec.right.push(l);
+    }
+  }
+  if(curSec.spans.length || curSec.left.length || curSec.right.length) sections.push(curSec);
+  const out = [];
+  for(const sec of sections){
+    out.push(...mergeHorizontalColumn(sec.spans));
+    out.push(...mergeHorizontalColumn(sec.left));
+    out.push(...mergeHorizontalColumn(sec.right));
+  }
+  return out.map(({last, ...b}) => b);
+}
+
+function updateLayoutChip(dir, twoCol){
+  const chip = $('layoutChip');
+  chip.hidden = false;
+  if(dir === 'v') chip.textContent = '↕ 國語直式（右→左）';
+  else chip.textContent = twoCol ? '↔ 橫式雙欄（左欄→右欄）' : '↔ 橫式排列（左→右）';
+}
+
+function orderAndMerge(rawLines, dir, pageW=0){
+  // 先將每行內的並列小題或選擇題選項拆細
+  const lines = [];
+  for(const l of rawLines){
+    if(!l.text || !meaningful(l.text)) continue;
+    lines.push(...splitLineBlockByInlineMarkers(l, dir));
+  }
+  if(!lines.length) return [];
+
+  if(dir === 'v'){
+    updateLayoutChip('v', false);
+    const cols = [...lines].sort((a,b) => ((b.x+b.w/2) - (a.x+a.w/2)) || (a.y - b.y));
+    const bands = [];
+    for(const c of cols){
+      let band = bands.find(bd => overlap1d(c.y, c.y+c.h, bd.y0, bd.y1) > 0.28*Math.min(c.h, bd.y1-bd.y0));
+      if(!band){ band = {y0:c.y, y1:c.y+c.h, cols:[]}; bands.push(band); }
+      band.cols.push(c); band.y0 = Math.min(band.y0, c.y); band.y1 = Math.max(band.y1, c.y+c.h);
+    }
+    bands.sort((a,b) => a.y0 - b.y0);
+    const out = [];
+    for(const band of bands){
+      const avgW = median(band.cols.map(c => c.w), 20);
+      band.cols.sort((a,b) => {
+        const dx = (b.x+b.w/2) - (a.x+a.w/2);
+        return Math.abs(dx) > avgW * 0.45 ? dx : (a.y - b.y);
+      });
+      let cur = null;
+      for(const c of band.cols){
+        if(cur){
+          const sameCol = Math.abs((c.x+c.w/2) - (cur.last.x+cur.last.w/2)) <= avgW * 0.5;
+          const gap = cur.last.x - (c.x + c.w);
+          const sameTop = Math.abs(c.y - cur.last.y) < Math.max(2.2*avgW, 0.25*cur.last.h);
+          if(!sameCol && gap < 0.95*avgW && sameTop && !QNUM.test(c.text) && !ENDS_COMPLETE_ITEM.test(cur.text) && !isCompleteSectionHead(cur.text) && !isFinishedUnnumberedSentence(cur.text) && !isStandaloneOptionOrShortSub(cur.text)){
+            Object.assign(cur, union(cur, c)); cur.text = joinText(cur.text, c.text); cur.last = c; continue;
+          }
+          out.push(cur);
+        }
+        cur = {x:c.x, y:c.y, w:c.w, h:c.h, text:c.text, dir:'v', last:c};
+      }
+      if(cur) out.push(cur);
+    }
+    return out.map(({last, ...b}) => b);
+  }
+  return orderHorizontalWithColumns(lines, pageW);
+}
+
+function itemsToLines(rawItems, dir){
+  let items = deduplicatePdfItems(rawItems);
+  items = filterPdfRubyZhuyin(items);
+  if(!items.length) return [];
+
+  if(dir === 'v'){
+    const medW = median(items.map(i => i.w), 16);
+    const medH = median(items.map(i => i.h), 16);
+    // 先依 X 軸聚類成縱向軌道，再於每個軌道內由上而下依垂直間距分段（避免上下不同大題或改錯題黏合）
+    const tracks = [];
+    for(const it of [...items].sort((a,b) => (b.x+b.w/2) - (a.x+a.w/2))){
+      const cx = it.x + it.w/2;
+      let tr = tracks.find(t => Math.abs(t.cx - cx) < 0.58 * Math.max(medW, it.w));
+      if(!tr){ tr = { cx, items:[] }; tracks.push(tr); }
+      tr.items.push(it);
+      tr.cx = tr.items.reduce((s,x)=>s+x.x+x.w/2, 0) / tr.items.length;
+    }
+    const out = [];
+    for(const tr of tracks){
+      tr.items.sort((a,b) => Math.abs(a.y - b.y) <= medH * 0.35 ? (a.x - b.x) : (a.y - b.y));
+      let seg = [];
+      for(const it of tr.items){
+        if(seg.length){
+          const prev = seg[seg.length - 1];
+          const vGap = it.y - (prev.y + prev.h);
+          if(vGap > Math.max(medH * 1.9, 28)){
+            out.push(...splitPdfItemsLine(seg, 'v'));
+            seg = [];
+          }
+        }
+        seg.push(it);
+      }
+      if(seg.length) out.push(...splitPdfItemsLine(seg, 'v'));
+    }
+    return out;
+  } else {
+    const medH = median(items.map(i => i.h), 16);
+    // 先依 Y 軸聚類成橫向軌道，再由左而右依水平大間距分段（切開雙欄或並列小題）
+    const tracks = [];
+    for(const it of [...items].sort((a,b) => (a.y+a.h/2) - (b.y+b.h/2))){
+      const cy = it.y + it.h/2;
+      let tr = tracks.find(t => Math.abs(t.cy - cy) < 0.55 * Math.max(medH, it.h));
+      if(!tr){ tr = { cy, items:[] }; tracks.push(tr); }
+      tr.items.push(it);
+      tr.cy = tr.items.reduce((s,x)=>s+x.y+x.h/2, 0) / tr.items.length;
+    }
+    const out = [];
+    for(const tr of tracks){
+      tr.items.sort((a,b) => a.x - b.x);
+      let seg = [];
+      for(const it of tr.items){
+        if(seg.length){
+          const prev = seg[seg.length - 1];
+          const hGap = it.x - (prev.x + prev.w);
+          if(hGap > Math.max(medH * 2.8, 42)){
+            out.push(...splitPdfItemsLine(seg, 'h'));
+            seg = [];
+          }
+        }
+        seg.push(it);
+      }
+      if(seg.length) out.push(...splitPdfItemsLine(seg, 'h'));
+    }
+    return out;
+  }
+}
+
+function pickDirFromItems(items){
+  if(items.some(it => VERT_PUNCT_RE.test(it.str) || it.vertical)) return 'v';
+  const h = itemsToLines(items, 'h'), v = itemsToLines(items, 'v');
+  return v.length < h.length * 0.78 ? 'v' : 'h';
+}
+
+/* ================= PDF 與圖片處理 ================= */
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const PDF_OPTS = {
+  cMapUrl:'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/', cMapPacked:true,
+  standardFontDataUrl:'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/standard_fonts/'
+};
+
+async function loadPdf(data, fileName='exam.pdf', presetEditsMap=null){
+  busy('正在打開 PDF 考卷…');
+  try{
+    const buf = data instanceof Uint8Array ? data : new Uint8Array(data);
+    const byteLen = buf.byteLength || 0;
+    // 複製一份給 pdf.js 避免 ArrayBuffer detached
+    S.pdf = await pdfjsLib.getDocument({data: buf.slice(0), ...PDF_OPTS}).promise;
+    S.docId = 'pdf_' + fileName.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g,'').slice(0,24) + '_' + byteLen + '_' + S.pdf.numPages;
+    S.pages = Array.from({length:S.pdf.numPages}, (_,i) => ({kind:'pdf', num:i+1}));
+    S.cache.clear(); S.cur = 0;
+    if(presetEditsMap){
+      for(const [pIdx, blks] of Object.entries(presetEditsMap)){
+        if(Array.isArray(blks) && blks.length){
+          try{ localStorage.setItem(editStorageKey(Number(pIdx)), JSON.stringify(blks)); }catch(e){}
+        }
+      }
+    }
+    await showPage(0);
+  }catch(e){
+    console.error(e); busy(false);
+    toast('這個 PDF 打不開，請確認檔案沒有加密或損壞。');
+  }
+}
+
+function pdfScale(page){ const w = page.getViewport({scale:1}).width; return Math.min(3, Math.max(1.6, 1900 / w)); }
+
+async function pdfTextItems(num){
+  const page = await S.pdf.getPage(num);
+  const vp = page.getViewport({scale: pdfScale(page)});
+  const tc = await page.getTextContent();
+  const items = [];
+  for(const it of tc.items){
+    const rawStr = it.str || '';
+    if(!rawStr.trim()) continue;
+    const tx = pdfjsLib.Util.transform(vp.transform, it.transform);
+    const fs = Math.hypot(tx[2], tx[3]) || 12;
+    const vertical = !!(tc.styles[it.fontName] && tc.styles[it.fontName].vertical);
+    let x, y, w, h;
+    if(vertical){ w = fs; h = Math.max(fs, (it.height||0)*vp.scale); x = tx[4]-fs/2; y = tx[5]; }
+    else { w = Math.max(fs*0.5, (it.width||0)*vp.scale); h = fs; x = tx[4]; y = tx[5]-fs; }
+
+    const chars = [...rawStr];
+    if(!vertical && chars.length > 1 && chars.some(c => /[\u4e00-\u9fff\u3105-\u3129①-⑳⑴-⑽]/.test(c))){
+      const cw = w / chars.length;
+      chars.forEach((ch, idx) => {
+        if(ch.trim()) items.push({str:ch, x:x + idx*cw, y, w:cw, h, vertical});
+      });
+    } else {
+      items.push({str:rawStr.trim(), x, y, w, h, vertical});
+    }
+  }
+  const all = items.map(i=>i.str).join('');
+  const good = (all.match(/[㐀-鿿ㄅ-ㄯA-Za-z0-9，。？！、：；「」（）()＋－×÷＝+\-=①-⑳□]/g)||[]).length;
+  if(all.length < 8 || good/all.length < 0.58) return null;
+  return items;
+}
+
+function fileToCanvas(fileOrBlob){
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(fileOrBlob);
+    const img = new Image();
+    img.onload = () => {
+      const max = 2100, k = Math.min(1, max/Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.naturalWidth*k));
+      c.height = Math.max(1, Math.round(img.naturalHeight*k));
+      const g = c.getContext('2d');
+      g.fillStyle = '#fff'; g.fillRect(0,0,c.width,c.height);
+      g.drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(url); res(c);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('img')); };
+    img.src = url;
+  });
+}
+
+function dataUrlToCanvas(dataUrl){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext('2d').drawImage(img, 0, 0);
+      res(c);
+    };
+    img.onerror = rej;
+    img.src = dataUrl;
+  });
+}
+
+function buildEnhancedCanvas(src){
+  const w = src.width, h = src.height;
+  const out = document.createElement('canvas');
+  out.width = w; out.height = h;
+  const ctx = out.getContext('2d');
+  ctx.drawImage(src, 0, 0);
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const d = imgData.data;
+  const gray = new Float32Array(w * h);
+  let sum = 0;
+  for(let i=0, p=0; i<d.length; i+=4, p++){
+    const g = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+    gray[p] = g; sum += g;
+  }
+  const whitePt = Math.max(155, Math.min(242, (sum / Math.max(1, w*h)) * 1.04));
+  const blackPt = whitePt * 0.30;
+  const span = Math.max(1, whitePt - blackPt);
+
+  for(let y=1; y<h-1; y++){
+    const row = y * w;
+    for(let x=1; x<w-1; x++){
+      const idx = row + x;
+      const c = gray[idx];
+      const nb = (gray[idx-1] + gray[idx+1] + gray[idx-w] + gray[idx+w]) * 0.25;
+      const sharp = c + (c - nb) * 0.45;
+      const norm = sharp >= whitePt ? 255 : sharp <= blackPt ? 0 : Math.round(((sharp - blackPt) / span) * 255);
+      const rIdx = idx * 4;
+      d[rIdx] = d[rIdx+1] = d[rIdx+2] = norm;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+  return out;
+}
+
+function rotateCanvas(src){
+  const c = document.createElement('canvas'); c.width = src.height; c.height = src.width;
+  const g = c.getContext('2d'); g.translate(c.width,0); g.rotate(Math.PI/2); g.drawImage(src,0,0);
+  return c;
+}
+function activeImgCanvas(pg){
+  if(!pg.useEnhance) return pg.rawCanvas;
+  if(!pg.enhancedCanvas) pg.enhancedCanvas = buildEnhancedCanvas(pg.rawCanvas);
+  return pg.enhancedCanvas;
+}
+
+/* ================= 縮放控制 ================= */
+function applyZoom(){
+  const pct = Math.round(S.zoom * 100);
+  $('bZoomReset').textContent = pct + '%';
+  $('paper').style.width = pct + '%';
+  $('paperScroll').classList.toggle('zoomed', S.zoom > 1.01);
+  $('bZoomOut').disabled = S.zoom <= 0.6;
+  $('bZoomIn').disabled = S.zoom >= 2.5;
+}
+$('bZoomOut').addEventListener('click', () => { S.zoom = Math.max(0.6, Math.round((S.zoom - 0.2)*10)/10); applyZoom(); });
+$('bZoomIn').addEventListener('click', () => { S.zoom = Math.min(2.5, Math.round((S.zoom + 0.2)*10)/10); applyZoom(); });
+$('bZoomReset').addEventListener('click', () => { S.zoom = 1; applyZoom(); });
+
+/* ================= 顯示頁面與辨識流程 ================= */
+const cv = $('cv'), ov = $('ov');
+function cacheKey(i){
+  const pg = S.pages[i];
+  const imgTag = pg.kind==='img' ? ('|r'+pg.rot+'|e'+(pg.useEnhance?1:0)) : '';
+  return i + '|' + S.dir + '|' + S.engine + '|' + (S.skipZy?1:0) + '|' + (S.fineSplit?1:0) + imgTag;
+}
+
+function updateBannerUI(){
+  const hdr = $('headerTitleTxt');
+  if(S.examTitle){
+    $('examBanner').hidden = false;
+    $('examBannerTitle').textContent = '📄 ' + S.examTitle;
+    $('bSaveToCabEdits').hidden = S.studentMode || !S.activeCabExamId;
+    document.title = S.examTitle + '｜評量報讀小幫手';
+    if(hdr){
+      hdr.innerHTML = '';
+      const sub = document.createElement('small');
+      if(S.studentMode){
+        hdr.append(document.createTextNode(S.examTitle), sub);
+        sub.textContent = '點選每一小題、改錯題或選項即可報讀';
+      } else {
+        hdr.append(document.createTextNode('評量報讀小幫手'), sub);
+        sub.textContent = '目前考卷：' + S.examTitle;
+      }
+    }
+  } else {
+    $('examBanner').hidden = true;
+    document.title = '評量報讀小幫手｜每小題獨立點讀・考卷 QR Code';
+    if(hdr){
+      hdr.innerHTML = '';
+      const sub = document.createElement('small');
+      sub.textContent = '每一小題、改錯題與選項皆可獨立點讀・支援考卷 QR Code';
+      hdr.append(document.createTextNode('評量報讀小幫手'), sub);
+    }
+  }
+}
+
+async function showPage(i, forceReOcr=false){
+  stopSpeak();
+  const myRender = ++S.renderToken;
+  S.cur = i; S.blocks = []; S.curBlockIdx = -1;
+  $('empty').hidden = true; $('viewer').hidden = false;
+  updateBannerUI();
+  applyZoom();
+  drawBlocks();
+  updateNav();
+
+  const pg = S.pages[i];
+  busy('正在載入第 '+(i+1)+' 頁…');
+  try{
+    if(pg.kind === 'pdf'){
+      const page = await S.pdf.getPage(pg.num);
+      const vp = page.getViewport({scale: pdfScale(page)});
+      cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+      const g = cv.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,cv.width,cv.height);
+      await page.render({canvasContext:g, viewport:vp}).promise;
+    } else if(pg.kind === 'virtual'){
+      renderVirtualQuestionSheet(pg.blocks);
+      S.blocks = pg.blocks;
+      drawBlocks(); updateNav();
+      return;
+    } else {
+      const src = activeImgCanvas(pg);
+      cv.width = src.width; cv.height = src.height;
+      cv.getContext('2d').drawImage(src, 0, 0);
+    }
+    if(myRender !== S.renderToken) return;
+    await analyze(i, myRender, forceReOcr);
+  }catch(e){
+    console.error(e);
+    if(myRender === S.renderToken) toast('這一頁處理失敗：'+(e.message||e));
+  }finally{
+    if(myRender === S.renderToken) busy(false);
+  }
+}
+
+// 當老師電腦未開機時的離線純文字小題點讀卷面繪製備援
+function renderVirtualQuestionSheet(blocks){
+  const W = 1200;
+  const rowH = 68, pad = 40;
+  const H = Math.max(800, pad*2 + 70 + blocks.length * rowH);
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#ffffff'; g.fillRect(0,0,W,H);
+  g.fillStyle = '#0f7b6c'; g.font = 'bold 30px sans-serif';
+  g.fillText(S.examTitle || '評量考卷（點選各小題即可聽題）', pad, pad + 30);
+  g.font = '24px sans-serif'; g.fillStyle = '#1c2a33';
+  blocks.forEach((b, idx) => {
+    const y = pad + 64 + idx * rowH;
+    g.strokeStyle = '#e2e8f0'; g.strokeRect(pad, y, W - pad*2, rowH - 10);
+    g.fillText(b.text.slice(0, 44) + (b.text.length > 44 ? '…' : ''), pad + 34, y + 36);
+    b.x = pad; b.y = y; b.w = W - pad*2; b.h = rowH - 10; b.dir = 'h';
+  });
+}
+
+async function analyze(i, myRender, forceReOcr=false){
+  const key = cacheKey(i);
+  if(!forceReOcr){
+    const saved = loadPageEdits(i);
+    if(saved){
+      S.blocks = saved; S.cache.set(key, saved);
+      drawBlocks(); updateNav();
+      return;
+    }
+    if(S.cache.has(key)){
+      S.blocks = S.cache.get(key);
+      drawBlocks(); updateNav();
+      return;
+    }
+  }
+
+  const pg = S.pages[i];
+  let blocks = null;
+  if(pg.kind === 'pdf' && !forceReOcr){
+    busy('正在解析 PDF 每一小題與選項座標…');
+    const items = await pdfTextItems(pg.num);
+    if(items){
+      pg.items = items;
+      const d = S.dir === 'auto' ? pickDirFromItems(items) : S.dir;
+      blocks = orderAndMerge(itemsToLines(items, d), d, cv.width);
+    }
+  }
+  if(!blocks){
+    if(S.engine === 'gemini' && S.key){
+      try{ blocks = await geminiRead(cv, false); }
+      catch(e){ console.error(e); toast('Gemini 辨識失敗（'+e.message+'），自動改用免費辨識。', 5000); }
+    } else if(S.engine === 'gemini' && !S.key){
+      toast('尚未填入 Gemini 金鑰，先使用免費本機辨識。');
+    }
+    if(!blocks) blocks = await tessPage(cv, S.dir);
+  }
+  if(myRender !== S.renderToken) return;
+  S.cache.set(key, blocks);
+  S.blocks = blocks;
+  savePageEdits();
+  drawBlocks();
+  updateNav();
+  if(!blocks.length) toast('這一頁沒有自動抓到文字，可切換「橫式／直式」或點下方「✋ 框選朗讀」。', 5000);
+}
+
+/* ================= 繪製小題框與教師校對清單 ================= */
+function drawBlocks(){
+  ov.querySelectorAll('.blk').forEach(n => n.remove());
+  const W = cv.width || 1, H = cv.height || 1;
+  const list = $('textList'); list.innerHTML = '';
+  $('blkCountChip').textContent = S.blocks.length + ' 個項目';
+
+  S.blocks.forEach((b, k) => {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'blk' + (b.dir==='v' ? ' v' : '') + (k === S.curBlockIdx && S.speaking ? ' reading' : '');
+    const pad = 3;
+    el.style.left = Math.max(0, (b.x-pad)/W*100) + '%';
+    el.style.top = Math.max(0, (b.y-pad)/H*100) + '%';
+    el.style.width = Math.min(100, (b.w+2*pad)/W*100) + '%';
+    el.style.height = Math.min(100, (b.h+2*pad)/H*100) + '%';
+    el.setAttribute('aria-label', '第'+(k+1)+'項：'+b.text);
+    el.innerHTML = '<span class="n">'+(k+1)+'</span>';
+    let downSpoke = false;
+    el.addEventListener('pointerdown', e => {
+      if(S.dragMode) return;
+      // 滑鼠或觸控筆按下瞬間立即報讀，0 延遲不必等放開按鍵
+      if(e.pointerType !== 'touch' && e.button === 0){
+        downSpoke = true;
+        S.curBlockIdx = k;
+        speakBlocks([b], k);
+      }
+    });
+    el.addEventListener('click', () => {
+      if(downSpoke){ downSpoke = false; return; }
+      S.curBlockIdx = k;
+      speakBlocks([b], k);
+    });
+    b.el = el;
+    ov.appendChild(el);
+
+    const li = document.createElement('li');
+    const qidx = document.createElement('span');
+    qidx.className = 'qidx'; qidx.textContent = k + 1;
+
+    const t = document.createElement('span');
+    t.className = 't'; t.contentEditable = 'true'; t.spellcheck = false;
+    t.textContent = b.text;
+    t.addEventListener('input', () => {
+      b.text = t.textContent.trim();
+      el.setAttribute('aria-label', '第'+(k+1)+'項：'+b.text);
+      savePageEdits();
+    });
+
+    const acts = document.createElement('div');
+    acts.className = 'item-acts';
+
+    const btnSay = mkMiniBtn('🔊 唸', '立即試聽這一小題／選項', () => { S.curBlockIdx = k; speakBlocks([b], k); }, '', true);
+    const btnFromHere = mkMiniBtn('▶ 往下連讀', '從這一項開始往後連讀', () => { S.curBlockIdx = k; speakBlocks(S.blocks.slice(k), k); });
+    const btnSplit = mkMiniBtn('✂️ 拆開', '將此項內的並列小題或選項拆成多框', () => splitSingleBlock(k));
+    const btnMerge = mkMiniBtn('🔗 合併下項', '將此項與下一項合併', () => mergeWithNext(k));
+    btnMerge.disabled = k === S.blocks.length - 1;
+    const btnUp = mkMiniBtn('⬆', '順序上移', () => moveBlock(k, -1));
+    btnUp.disabled = k === 0;
+    const btnDn = mkMiniBtn('⬇', '順序下移', () => moveBlock(k, 1));
+    btnDn.disabled = k === S.blocks.length - 1;
+    const btnDel = mkMiniBtn('🗑', '刪除此框', () => deleteBlock(k), 'del');
+
+    acts.append(btnSay, btnFromHere, btnSplit, btnMerge, btnUp, btnDn, btnDel);
+    li.append(qidx, t, acts);
+    b.li = li;
+    list.appendChild(li);
+  });
+}
+
+function mkMiniBtn(label, title, onClick, extraCls='', instantOnDown=false){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'mini' + (extraCls ? ' '+extraCls : '');
+  b.textContent = label; b.title = title;
+  if(instantOnDown){
+    let downFired = false;
+    b.addEventListener('pointerdown', e => {
+      if(e.pointerType !== 'touch' && e.button === 0){ downFired = true; onClick(e); }
+    });
+    b.addEventListener('click', e => {
+      if(downFired){ downFired = false; return; }
+      onClick(e);
+    });
+  } else {
+    b.addEventListener('click', onClick);
+  }
+  return b;
+}
+
+function splitSingleBlock(k){
+  const b = S.blocks[k];
+  if(!b) return;
+  const oldFine = S.fineSplit; S.fineSplit = true;
+  let parts = splitLineBlockByInlineMarkers(b, b.dir || 'h');
+  S.fineSplit = oldFine;
+  // 若沒有自動切點，但中間有空格，依空格對半切開方便老師微調
+  if(parts.length <= 1){
+    const m = b.text.match(/^(.+?)\s{1,}(.+)$/);
+    if(m){
+      const r1 = m[1].length / b.text.length;
+      if(b.dir === 'v'){
+        parts = [
+          {x:b.x, y:b.y, w:b.w, h:b.h*r1, text:m[1].trim(), dir:'v'},
+          {x:b.x, y:b.y+b.h*r1, w:b.w, h:b.h*(1-r1), text:m[2].trim(), dir:'v'}
+        ];
+      } else {
+        parts = [
+          {x:b.x, y:b.y, w:b.w*r1, h:b.h, text:m[1].trim(), dir:'h'},
+          {x:b.x+b.w*r1, y:b.y, w:b.w*(1-r1), h:b.h, text:m[2].trim(), dir:'h'}
+        ];
+      }
+    }
+  }
+  if(parts.length <= 1){
+    toast('可在文字中要切開的位置先打一個「空白鍵」，再按「✂️ 拆開」即可一分為二！', 4200);
+    return;
+  }
+  parts.forEach(p => p.dir = b.dir || 'h');
+  S.blocks.splice(k, 1, ...parts);
+  savePageEdits(); drawBlocks(); updateNav();
+  toast('已拆分為 ' + parts.length + ' 個獨立小題框');
+}
+
+$('bSplitAllSub').addEventListener('click', () => {
+  if(!S.blocks.length) return;
+  const oldFine = S.fineSplit; S.fineSplit = true;
+  const next = [];
+  for(const b of S.blocks){
+    const parts = splitLineBlockByInlineMarkers(b, b.dir || 'h');
+    parts.forEach(p => { p.dir = b.dir || 'h'; next.push(p); });
+  }
+  S.fineSplit = oldFine;
+  const diff = next.length - S.blocks.length;
+  S.blocks = next;
+  savePageEdits(); drawBlocks(); updateNav();
+  toast(diff > 0 ? `已細分新增 ${diff} 個小題／選項框！` : '目前已是最小細分狀態');
+});
+
+function moveBlock(k, delta){
+  const j = k + delta;
+  if(j < 0 || j >= S.blocks.length) return;
+  const tmp = S.blocks[k]; S.blocks[k] = S.blocks[j]; S.blocks[j] = tmp;
+  savePageEdits(); drawBlocks(); updateNav();
+}
+function mergeWithNext(k){
+  if(k < 0 || k >= S.blocks.length - 1) return;
+  const a = S.blocks[k], b = S.blocks[k+1];
+  const u = union(a, b);
+  a.x = u.x; a.y = u.y; a.w = u.w; a.h = u.h;
+  a.text = joinText(a.text, b.text);
+  S.blocks.splice(k+1, 1);
+  savePageEdits(); drawBlocks(); updateNav();
+  toast('已合併為第 '+(k+1)+' 項');
+}
+function deleteBlock(k){
+  S.blocks.splice(k, 1);
+  if(S.curBlockIdx >= S.blocks.length) S.curBlockIdx = S.blocks.length - 1;
+  savePageEdits(); drawBlocks(); updateNav();
+}
+
+function updateNav(){
+  const n = S.pages.length;
+  const hasBlocks = S.blocks.length > 0;
+  $('pg').textContent = n ? ('第 '+(S.cur+1)+' / '+n+' 頁') : '－';
+  $('bPrev').disabled = !n || S.cur === 0;
+  $('bNext').disabled = !n || S.cur >= n - 1;
+
+  const isImg = n && S.pages[S.cur].kind === 'img';
+  $('bRot').hidden = !isImg;
+  $('bEnhance').hidden = !isImg;
+  if(isImg){
+    $('bEnhance').textContent = '✨ 清晰增強：' + (S.pages[S.cur].useEnhance ? '開' : '關');
+    $('bEnhance').classList.toggle('on', !!S.pages[S.cur].useEnhance);
+  }
+
+  $('bPlayPause').disabled = !n;
+  $('bSel').disabled = !n;
+  $('bPrevQ').disabled = !hasBlocks;
+  $('bNextQ').disabled = !hasBlocks;
+  $('bReplay').disabled = !S.lastSpoken && !hasBlocks;
+  updatePlayPauseBtnUI();
+}
+
+function updatePlayPauseBtnUI(){
+  const btn = $('bPlayPause');
+  if(S.speaking && !S.paused){
+    btn.textContent = '⏸ 暫停'; btn.classList.add('on');
+  } else if(S.speaking && S.paused){
+    btn.textContent = '▶ 繼續唸'; btn.classList.add('on');
+  } else {
+    btn.textContent = '🔊 整頁連讀'; btn.classList.remove('on');
+  }
+}
+
+/* ================= Tesseract 免費辨識（支援逐詞座標精準切小題） ================= */
+const workers = {};
+let progressLabel = '辨識文字中';
+function getWorker(lang){
+  if(!workers[lang]){
+    workers[lang] = Tesseract.createWorker(lang, 1, {
+      logger: m => {
+        if(m.status === 'recognizing text') busy(progressLabel+'… '+Math.round((m.progress||0)*100)+'%');
+        else if(/load|initializ|download/i.test(m.status||'')) busy('首次使用，正在下載'+(lang.includes('vert')?'直式':'橫式')+'語言資料…');
+      }
+    }).catch(e => { delete workers[lang]; throw e; });
+  }
+  return workers[lang];
+}
+function tessLines(data, dir){
+  let lines = data.lines;
+  if(!lines || !lines.length){
+    lines = [];
+    (data.blocks||[]).forEach(b => (b.paragraphs||[]).forEach(p => (p.lines||[]).forEach(l => lines.push(l))));
+  }
+  const out = [];
+  for(const l of lines){
+    const txt = cleanText(l.text);
+    if((l.confidence||0) < 34 || !meaningful(txt)) continue;
+    const base = {
+      x:l.bbox.x0, y:l.bbox.y0, w:l.bbox.x1-l.bbox.x0, h:l.bbox.y1-l.bbox.y0,
+      text: txt, conf: l.confidence||0
+    };
+    if(base.w <= 4 || base.h <= 4) continue;
+    out.push(...splitLineBlockByInlineMarkers(base, dir));
+  }
+  return out;
+}
+async function tessRun(canvas, dir, psm){
+  const lang = dir==='v' ? 'chi_tra_vert' : 'chi_tra';
+  const w = await getWorker(lang);
+  progressLabel = dir==='v' ? '辨識直式小題中' : '辨識橫式小題中';
+  await w.setParameters({ tessedit_pageseg_mode: String(psm), preserve_interword_spaces: '1' });
+  const { data } = await w.recognize(canvas, {}, {text:true, blocks:true});
+  return tessLines(data, dir);
+}
+function score(lines){ return lines.reduce((s,l) => s + (l.conf||50) * l.text.length, 0); }
+async function tessPage(canvas, dir){
+  if(dir === 'auto'){
+    const h = await tessRun(canvas, 'h', 3);
+    const v = await tessRun(canvas, 'v', 3);
+    const d = score(v) > score(h)*1.08 ? 'v' : 'h';
+    toast(d==='v' ? '自動判斷：國語直式排列' : '自動判斷：橫式排列');
+    return orderAndMerge(d==='v' ? v : h, d, canvas.width);
+  }
+  return orderAndMerge(await tessRun(canvas, dir, 3), dir, canvas.width);
+}
+
+/* ================= Gemini Vision AI 極細小題與選項辨識 ================= */
+async function geminiRead(canvas, isCrop){
+  busy('Gemini AI 正在細分每一小題與選項…');
+  const b64 = canvas.toDataURL('image/jpeg', 0.88).split(',')[1];
+  const dirHint = S.dir==='v' ? '這份考卷主要是國語直式排列。' : S.dir==='h' ? '這份考卷主要是橫式排列（留意是否有左右雙欄）。' : '';
+  const granRule = isCrop
+    ? '這是框選區域，請把全部文字照順序合成「一個」項目即可。'
+    : (S.fineSplit
+      ? '【極重要：每一小題、國語改錯題每一題、與每個選項都要拆開獨立報讀！】大題說明標題自成一項；每一題的「題幹（含題號與開頭作答括號）」獨立一項；國語「改錯字」大題中的每一題（無論是單括號「（　）1.…」、雙括號「（　）（　）１…」、無題號僅括號「（　）句子…」、句尾括號「句子。（　）」、或表格框線內的每一句）都必須各自拆成獨立的一個項目，絕不可把多題改錯字合併！題組底下的每一個子題（如 (1)、(2)、⑴、⑵、填充小題、計算小題）各自獨立一項；選擇題的「每一個選項（如 ①…、②…、③…、④… 或 (A)…、(B)…）」也請務必各自拆成獨立的一個項目並給出該選項精準的 box_2d 座標！頁首的班級姓名座號欄請省略。'
+      : '每一小題（題號、題幹、國語改錯題每一題、子題）各自獨立成一個項目；大題說明自成一項；頁首姓名座號欄省略。');
+
+  const prompt = `這是台灣中小學考卷${isCrop?'中被框選的一小塊區域':'的一頁'}，要用來報讀給有特教需求的學生聽。${dirHint}
+請找出圖中要唸的文字，嚴格依照正確閱讀順序輸出：
+1. 橫式文字：若有左右兩欄，先讀完左欄再讀右欄；每欄由左到右、由上到下。直式文字（國語直排）：每行由上到下，行與行由右到左；上下多個大題先讀上面再讀下面。
+2. ${granRule}
+3. 國字旁邊附註的小注音請忽略只輸出國字；但若該小題或選項本身就是在考注音符號（旁邊無對應國字），請完整保留注音符號！
+4. 空白填答括號輸出「（　）」，空白方格輸出「□」，填答底線輸出「＿＿」。數學分數與符號照原樣輸出。嚴禁作答或洩漏答案。
+輸出 JSON 陣列，元素格式 {"text": "文字", "dir": "h" 或 "v", "box_2d": [ymin, xmin, ymax, xmax]}，座標 0 到 1000。`;
+
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(S.model)+':generateContent?key='+encodeURIComponent(S.key);
+  const r = await fetch(url, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      contents:[{parts:[{inline_data:{mime_type:'image/jpeg', data:b64}},{text:prompt}]}],
+      generationConfig:{response_mime_type:'application/json', temperature:0}
+    })
+  });
+  if(!r.ok){
+    let msg = 'HTTP '+r.status;
+    try{ const j = await r.json(); msg = (j.error && j.error.message) || msg; }catch(e){}
+    if(r.status===400 && /API key/i.test(msg)) msg = 'Gemini 金鑰不正確';
+    if(r.status===404) msg = '找不到模型「'+S.model+'」';
+    if(r.status===429) msg = 'API 免費額度暫達上限，請稍候再試';
+    throw new Error(msg);
+  }
+  const j = await r.json();
+  const txt = ((j.candidates||[])[0]?.content?.parts||[]).map(p=>p.text||'').join('');
+  let arr = JSON.parse(txt.replace(/^```(json)?|```$/g,'').trim());
+  if(!Array.isArray(arr)) arr = arr.items || arr.blocks || [];
+  const W = canvas.width, H = canvas.height;
+  return arr.filter(o => o && o.text && meaningful(o.text)).map(o => {
+    const bx = Array.isArray(o.box_2d) && o.box_2d.length===4 ? o.box_2d : [0,0,1000,1000];
+    const y0 = bx[0]/1000*H, x0 = bx[1]/1000*W, y1 = bx[2]/1000*H, x1 = bx[3]/1000*W;
+    return {x:Math.min(x0,x1), y:Math.min(y0,y1), w:Math.abs(x1-x0), h:Math.abs(y1-y0), text:cleanText(o.text), dir:o.dir==='v'?'v':'h'};
+  });
+}
+
+/* ================= 📚 教師考卷櫃 & PeerJS 點對點跨平板派卷系統 ================= */
+let hostPeer = null;
+const CHUNK_SIZE = 48 * 1024; // 48KB 分片確保跨 iPad Safari / Chrome 傳大型 PDF 100% 穩定
+
+function getBaseShareUrl(){
+  if(location.origin === 'null' || location.protocol === 'file:'){
+    return location.href.split('?')[0].split('#')[0];
+  }
+  return location.origin + location.pathname;
+}
+
+function buildStudentExamUrl(exam){
+  const p = new URLSearchParams();
+  p.set('room', teacherRoomId);
+  p.set('exam', exam.id);
+  p.set('dir', exam.dir || 'h');
+  p.set('title', exam.title || '考卷');
+  p.set('student', '1');
+  p.set('zy', S.skipZy ? '1' : '0');
+  p.set('math', S.mathWords ? '1' : '0');
+  p.set('sub', S.showSub ? '1' : '0');
+  p.set('rate', String(S.rate));
+  if(S.lockPin) p.set('pin', S.lockPin);
+  if(S.incKeyInCab && S.key){ p.set('engine', S.engine); p.set('k', S.key); }
+
+  let hash = '';
+  // 若第 1 頁已有校對好的小題文字且長度適中，壓縮附在 #q= 作為離線備援！
+  const p0 = exam.edits && exam.edits[0];
+  if(Array.isArray(p0) && p0.length && window.LZString){
+    const slimTxt = p0.map(b => ({text:b.text}));
+    const comp = LZString.compressToEncodedURIComponent(JSON.stringify(slimTxt));
+    if(comp.length <= 1600) hash = '#q=' + comp;
+  }
+  return getBaseShareUrl() + '?' + p.toString() + hash;
+}
+
+function startTeacherPeerHost(){
+  if(hostPeer || !window.Peer || S.incomingExamId) return;
+  try{
+    hostPeer = new Peer(teacherRoomId);
+    hostPeer.on('open', () => {
+      $('hostStatusChip').hidden = false;
+      $('hostStatusChip').textContent = '🟢 派卷連線就緒（學生可掃碼）';
+    });
+    hostPeer.on('connection', conn => {
+      conn.on('data', async msg => {
+        if(!msg || msg.type !== 'req_exam' || !msg.examId) return;
+        const exam = await ExamDB.get(msg.examId, 'exams');
+        if(!exam){
+          conn.send({ type:'err', message:'老師端找不到這份考卷，請確認考卷未被刪除。' });
+          return;
+        }
+        toast(`📲 學生平板正在領取「${exam.title}」…`, 2500);
+        // 打包 payload 為 JSON 字串或二進位分片傳送
+        let payloadObj;
+        if(exam.fileKind === 'pdf'){
+          const u8 = exam.pdfBytes instanceof Uint8Array ? exam.pdfBytes : new Uint8Array(exam.pdfBytes);
+          let bin = '';
+          const step = 32768;
+          for(let i=0;i<u8.length;i+=step) bin += String.fromCharCode.apply(null, u8.subarray(i, i+step));
+          payloadObj = { id:exam.id, title:exam.title, dir:exam.dir, fileKind:'pdf', pdfB64:btoa(bin), edits:exam.edits||{} };
+        } else {
+          payloadObj = { id:exam.id, title:exam.title, dir:exam.dir, fileKind:'img', imgDataUrls:exam.imgDataUrls||[], edits:exam.edits||{} };
+        }
+        const jsonStr = JSON.stringify(payloadObj);
+        const total = Math.ceil(jsonStr.length / CHUNK_SIZE);
+        conn.send({ type:'meta', title:exam.title, total });
+        for(let idx = 0; idx < total; idx++){
+          conn.send({ type:'chunk', idx, data: jsonStr.slice(idx*CHUNK_SIZE, (idx+1)*CHUNK_SIZE) });
+        }
+        conn.send({ type:'done' });
+      });
+    });
+    hostPeer.on('error', err => {
+      if(err.type === 'unavailable-id'){
+        // 同一台電腦開了兩個分頁，沿用即可
+        $('hostStatusChip').hidden = false;
+        $('hostStatusChip').textContent = '🟢 派卷已在其他分頁啟動';
+      }
+    });
+  }catch(e){ console.warn('PeerHost init error:', e); }
+}
+
+// 學生平板掃描 QR Code 後自動領取考卷流程
+async function fetchExamAsStudent(roomId, examId){
+  $('cabinetSection').hidden = true;
+  // 1. 先檢查學生平板本機 IndexedDB 是否已領取過（秒開＋支援斷網續考！）
+  try{
+    const cached = await ExamDB.get(examId, 'student_cache');
+    if(cached){
+      await openExamPayload(cached, false);
+      toast('已載入考卷：' + cached.title);
+      return;
+    }
+  }catch(e){}
+
+  // 2. 透過 PeerJS 點對點連線向老師電腦領取高清原卷＋小題框
+  busy('正在連線領取考卷「' + (S.examTitle || '') + '」…');
+  const gotViaPeer = await new Promise(resolve => {
+    if(!window.Peer){ resolve(null); return; }
+    let settled = false;
+    const finish = val => { if(!settled){ settled = true; clearTimeout(timer); resolve(val); } };
+    const timer = setTimeout(() => finish(null), 9000);
+
+    try{
+      const p = new Peer();
+      p.on('open', () => {
+        const conn = p.connect(roomId, { reliable:true });
+        let chunks = [], total = 1;
+        conn.on('open', () => conn.send({ type:'req_exam', examId }));
+        conn.on('data', msg => {
+          if(!msg) return;
+          if(msg.type === 'err'){ toast(msg.message, 5000); finish(null); }
+          else if(msg.type === 'meta'){ total = Math.max(1, msg.total || 1); chunks = new Array(total); }
+          else if(msg.type === 'chunk'){
+            chunks[msg.idx] = msg.data;
+            const gotCnt = chunks.filter(Boolean).length;
+            busy(`正在下載考卷… ${Math.round(gotCnt / total * 100)}%`);
+          } else if(msg.type === 'done'){
+            try{
+              const full = JSON.parse(chunks.join(''));
+              setTimeout(() => { try{ p.destroy(); }catch(e){} }, 500);
+              finish(full);
+            }catch(err){ finish(null); }
+          }
+        });
+        conn.on('error', () => finish(null));
+      });
+      p.on('error', () => finish(null));
+    }catch(e){ finish(null); }
+  });
+
+  if(gotViaPeer){
+    try{ await ExamDB.put(gotViaPeer, 'student_cache'); }catch(e){}
+    await openExamPayload(gotViaPeer, false);
+    busy(false);
+    toast('✅ 考卷載入完成！點選任何一小題或選項即可聽題。', 4500);
+    return;
+  }
+
+  // 3. 若老師電腦沒開，啟用網址 Hash 內嵌的離線小題包備援
+  busy(false);
+  if(S.hashFallbackBlocks && S.hashFallbackBlocks.length){
+    S.pages = [{ kind:'virtual', blocks: S.hashFallbackBlocks.map(b => ({...b})) }];
+    await showPage(0);
+    toast('已使用離線題目包開啟考卷！點選各題即可報讀。', 4500);
+  } else {
+    toast('⚠️ 無法連線至老師的派卷頁面。請確認老師電腦上的「評量報讀小幫手」網頁保持開啟，再重新整理一次！', 8000);
+  }
+}
+
+async function openExamPayload(exam, isTeacherPreview=true){
+  S.activeCabExamId = isTeacherPreview ? exam.id : null;
+  S.examTitle = exam.title || '考卷';
+  if(['h','v','auto'].includes(exam.dir)) setDir(exam.dir);
+
+  if(exam.fileKind === 'pdf'){
+    let bytes = exam.pdfBytes;
+    if(!bytes && exam.pdfB64){
+      const bin = atob(exam.pdfB64);
+      bytes = new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+    }
+    await loadPdf(bytes, exam.title || 'exam.pdf', exam.edits || null);
+  } else if(exam.imgDataUrls && exam.imgDataUrls.length){
+    busy('正在載入考卷圖片…');
+    S.pages = []; S.pdf = null; S.cache.clear();
+    S.docId = 'cabimg_' + exam.id;
+    for(const url of exam.imgDataUrls){
+      const rawCanvas = await dataUrlToCanvas(url);
+      S.pages.push({ kind:'img', rawCanvas, enhancedCanvas:null, useEnhance:S.photoEnhance, rot:0 });
+    }
+    if(exam.edits){
+      for(const [pIdx, blks] of Object.entries(exam.edits)){
+        if(Array.isArray(blks) && blks.length){
+          try{ localStorage.setItem(editStorageKey(Number(pIdx)), JSON.stringify(blks)); }catch(e){}
+        }
+      }
+    }
+    await showPage(0);
+  }
+}
+
+async function syncEditsToCabinetExam(examId, pageIdx, slimBlocks){
+  try{
+    const rec = await ExamDB.get(examId, 'exams');
+    if(!rec) return;
+    rec.edits = rec.edits || {};
+    rec.edits[pageIdx] = slimBlocks;
+    await ExamDB.put(rec, 'exams');
+    renderCabinetList();
+  }catch(e){}
+}
+
+$('bSaveToCabEdits').addEventListener('click', async () => {
+  if(!S.activeCabExamId) return;
+  savePageEdits();
+  toast('✅ 已將本頁小題校對同步儲存至派卷區！學生掃碼即會收到最新版本。');
+});
+
+/* 教師上傳新考卷加入派卷區 */
+$('bUploadExam').addEventListener('click', () => $('fCabUpload').click());
+$('fCabUpload').addEventListener('change', async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  if(!files.length) return;
+  const rawTitle = $('upTitle').value.trim();
+  const dir = $('upDir').value;
+  const pdfFile = files.find(f => f.type==='application/pdf' || /\.pdf$/i.test(f.name));
+
+  busy('正在儲存考卷並產生考卷 QR Code…');
+  try{
+    const id = genRandomId('ex');
+    let record;
+    if(pdfFile){
+      const buf = new Uint8Array(await pdfFile.arrayBuffer());
+      const tmpPdf = await pdfjsLib.getDocument({data: buf.slice(0), ...PDF_OPTS}).promise;
+      const title = rawTitle || pdfFile.name.replace(/\.pdf$/i, '');
+      record = { id, title, dir, fileKind:'pdf', pageCount: tmpPdf.numPages, pdfBytes: buf, edits:{}, createdAt: Date.now() };
+    } else {
+      const imgs = files.filter(f => f.type.startsWith('image/') || /\.(png|jpe?g|webp|bmp)$/i.test(f.name));
+      if(!imgs.length){ busy(false); toast('請選擇 PDF 或考卷照片'); return; }
+      const imgDataUrls = [];
+      for(const f of imgs){
+        const c = await fileToCanvas(f);
+        imgDataUrls.push(c.toDataURL('image/jpeg', 0.85));
+      }
+      const title = rawTitle || imgs[0].name.replace(/\.[^.]+$/, '');
+      record = { id, title, dir, fileKind:'img', pageCount: imgDataUrls.length, imgDataUrls, edits:{}, createdAt: Date.now() };
+    }
+
+    await ExamDB.put(record, 'exams');
+    $('upTitle').value = '';
+    await renderCabinetList();
+    startTeacherPeerHost();
+    // 自動開啟預覽並進行第 1 頁小題細分辨識，讓 QR 備援與校對立刻就緒！
+    await openExamPayload(record, true);
+    toast(`🎉 已建立考卷「${record.title}」的 QR Code！`);
+  }catch(err){
+    console.error(err);
+    toast('上傳考卷失敗：' + (err.message || err));
+  }finally{
+    busy(false);
+  }
+});
+
+async function renderCabinetList(){
+  let list = [];
+  try{ list = await ExamDB.getAll('exams'); }catch(e){}
+  $('cabCount').textContent = list.length;
+  const grid = $('examGrid');
+  grid.innerHTML = '';
+
+  if(!list.length){
+    grid.innerHTML = '<div class="cab-empty">目前還沒有上傳考卷。請在上方輸入「考卷名稱」（例如：<b>三上國語期中考</b>）並上傳考卷 PDF／照片，即可產生該份考卷的 QR Code！</div>';
+    return;
+  }
+
+  startTeacherPeerHost();
+
+  list.forEach(ex => {
+    const card = document.createElement('div');
+    card.className = 'exam-card' + (S.activeCabExamId === ex.id ? ' active' : '');
+
+    const top = document.createElement('div');
+    top.className = 'exam-card-top';
+
+    const qrMini = document.createElement('div');
+    qrMini.className = 'exam-qr-mini';
+    qrMini.title = '點擊放大顯示此考卷的 QR Code';
+    const url = buildStudentExamUrl(ex);
+    try{
+      new QRCode(qrMini, { text:url, width:82, height:82, correctLevel: QRCode.CorrectLevel.L });
+    }catch(e){ qrMini.textContent = 'QR'; }
+    qrMini.addEventListener('click', () => showBigQrModal(ex));
+
+    const meta = document.createElement('div');
+    meta.className = 'exam-meta';
+    const h3 = document.createElement('h3');
+    h3.textContent = ex.title;
+    const tags = document.createElement('div');
+    tags.className = 'tags';
+    const dirLabel = ex.dir==='v' ? '直式（國語）' : ex.dir==='auto' ? '自動方向' : '橫式';
+    const editCnt = ex.edits && ex.edits[0] ? `・第1頁 ${ex.edits[0].length} 小題` : '';
+    tags.innerHTML = `<span class="tag">${ex.fileKind==='pdf'?'PDF':'照片'} ${ex.pageCount||1} 頁</span><span class="tag">${dirLabel}${editCnt}</span>`;
+    meta.append(h3, tags);
+    top.append(qrMini, meta);
+
+    const acts = document.createElement('div');
+    acts.className = 'exam-acts';
+
+    const bOpenEx = document.createElement('button');
+    bOpenEx.type = 'button'; bOpenEx.className = 'btn sm primary'; bOpenEx.textContent = '👁 開啟預覽／校對';
+    bOpenEx.addEventListener('click', () => openExamPayload(ex, true));
+
+    const bQrEx = document.createElement('button');
+    bQrEx.type = 'button'; bQrEx.className = 'btn sm'; bQrEx.textContent = '📱 考卷 QR';
+    bQrEx.addEventListener('click', () => showBigQrModal(ex));
+
+    const bDelEx = document.createElement('button');
+    bDelEx.type = 'button'; bDelEx.className = 'btn sm danger'; bDelEx.textContent = '🗑';
+    bDelEx.title = '刪除此份考卷';
+    bDelEx.addEventListener('click', async () => {
+      if(!confirm(`確定要刪除考卷「${ex.title}」嗎？`)) return;
+      await ExamDB.delete(ex.id, 'exams');
+      if(S.activeCabExamId === ex.id) S.activeCabExamId = null;
+      renderCabinetList();
+    });
+
+    acts.append(bOpenEx, bQrEx, bDelEx);
+    card.append(top, acts);
+    grid.appendChild(card);
+  });
+}
+
+let currentModalExam = null;
+function showBigQrModal(exam){
+  currentModalExam = exam;
+  const url = buildStudentExamUrl(exam);
+  $('bigQrTitle').textContent = '📄 ' + exam.title;
+  const isLocalFile = location.protocol === 'file:';
+  $('bigQrHint').textContent = isLocalFile
+    ? '⚠️ 注意：目前開啟的是電腦本機檔案 (file://)，平板無法掃描本機路徑；請使用公開網址開啟後再掃描！'
+    : `請用平板相機掃描下方 QR Code，畫面就會出現「${exam.title}」並可逐小題點讀（考試時請保持老師此網頁開啟）。`;
+  $('bigQrUrl').textContent = url;
+  const box = $('bigQrBox'); box.innerHTML = '';
+  try{
+    new QRCode(box, { text:url, width:240, height:240, correctLevel: QRCode.CorrectLevel.L });
+  }catch(e){
+    box.textContent = '連結較長，請複製下方網址';
+  }
+  $('qrDlg').showModal();
+}
+
+$('bCloseQrDlg').addEventListener('click', () => $('qrDlg').close());
+$('bCopyBigQr').addEventListener('click', async () => {
+  try{ await navigator.clipboard.writeText($('bigQrUrl').textContent); toast('已複製此考卷連結！'); }
+  catch(e){ toast('請手動選取網址複製'); }
+});
+$('bPrintSingleQr').addEventListener('click', () => {
+  if(!currentModalExam) return;
+  $('qrDlg').close();
+  printExamQrCards([currentModalExam]);
+});
+
+$('bPrintAllQr').addEventListener('click', async () => {
+  const list = await ExamDB.getAll('exams');
+  if(!list.length){ toast('請先上傳至少一份考卷，才能列印考卷 QR Code！'); return; }
+  printExamQrCards(list);
+});
+
+function printExamQrCards(exams){
+  const sheet = $('printSheet');
+  sheet.innerHTML = '';
+  exams.forEach(ex => {
+    const card = document.createElement('div');
+    card.className = 'p-card';
+    const qBox = document.createElement('div');
+    qBox.className = 'p-qr';
+    try{ new QRCode(qBox, { text:buildStudentExamUrl(ex), width:130, height:130, correctLevel: QRCode.CorrectLevel.L }); }catch(e){}
+    const info = document.createElement('div');
+    info.className = 'p-info';
+    info.innerHTML = `<h3>${ex.title.replace(/[<>&]/g,'')}</h3><p>📱 請用平板相機掃描此 QR Code 開啟考卷報讀</p><p style="margin-top:4px;font-size:.8rem">（共 ${ex.pageCount||1} 頁・每一小題、改錯題與選項皆可點讀）</p>`;
+    card.append(qBox, info);
+    sheet.appendChild(card);
+  });
+  setTimeout(() => window.print(), 250);
+}
+
+$('bToggleCabinet').addEventListener('click', () => {
+  const sec = $('cabinetSection');
+  sec.hidden = !sec.hidden;
+  if(!sec.hidden) sec.scrollIntoView({behavior:'smooth', block:'start'});
+});
+$('bHideCabinet').addEventListener('click', () => { $('cabinetSection').hidden = true; });
+
+/* ================= 框選朗讀 & 手動新增小題框 ================= */
+let drag = null;
+const selEl = document.createElement('div');
+selEl.className = 'selrect'; selEl.hidden = true; ov.appendChild(selEl);
+
+function toCanvasXY(e){
+  const r = cv.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) / Math.max(1, r.width) * cv.width,
+    y: (e.clientY - r.top) / Math.max(1, r.height) * cv.height
+  };
+}
+
+function setDragMode(mode){
+  S.dragMode = mode;
+  const active = !!mode;
+  ov.classList.toggle('selecting', active);
+  $('bSel').classList.toggle('on', mode === 'read');
+  $('bAddBlk').classList.toggle('on', mode === 'add');
+  $('selHint').hidden = !active;
+  $('selHintText').textContent = mode === 'add'
+    ? '➕ 新增小題框模式：請在考卷上拖曳框出小題或選項，辨識後會自動加入清單。'
+    : '✋ 框選朗讀模式：用手指或滑鼠把要聽的文字框起來就會唸（再按一次可關閉）。';
+}
+
+$('bCancelMode').addEventListener('click', () => setDragMode(null));
+$('bSel').addEventListener('click', () => setDragMode(S.dragMode === 'read' ? null : 'read'));
+$('bAddBlk').addEventListener('click', () => setDragMode(S.dragMode === 'add' ? null : 'add'));
+
+ov.addEventListener('pointerdown', e => {
+  if(!S.dragMode) return;
+  unlockSpeech();
+  e.preventDefault();
+  ov.setPointerCapture(e.pointerId);
+  drag = { a: toCanvasXY(e), b: toCanvasXY(e) };
+  paintSel();
+});
+ov.addEventListener('pointermove', e => { if(drag){ drag.b = toCanvasXY(e); paintSel(); } });
+ov.addEventListener('pointerup', async e => {
+  if(!drag) return;
+  drag.b = toCanvasXY(e);
+  const x = Math.max(0, Math.min(drag.a.x, drag.b.x)), y = Math.max(0, Math.min(drag.a.y, drag.b.y));
+  const w = Math.min(cv.width, Math.max(drag.a.x, drag.b.x)) - x, h = Math.min(cv.height, Math.max(drag.a.y, drag.b.y)) - y;
+  const mode = S.dragMode;
+  drag = null;
+  if(w < 16 || h < 16){
+    selEl.hidden = true;
+    const hitIdx = S.blocks.findIndex(b => x>=b.x-6 && x<=b.x+b.w+6 && y>=b.y-6 && y<=b.y+b.h+6);
+    if(hitIdx >= 0){ S.curBlockIdx = hitIdx; speakBlocks([S.blocks[hitIdx]], hitIdx); }
+    return;
+  }
+  await processRegion({x,y,w,h}, mode);
+});
+ov.addEventListener('pointercancel', () => { drag = null; selEl.hidden = true; });
+
+function paintSel(){
+  const x = Math.min(drag.a.x, drag.b.x), y = Math.min(drag.a.y, drag.b.y);
+  selEl.style.left = (x/cv.width*100)+'%'; selEl.style.top = (y/cv.height*100)+'%';
+  selEl.style.width = (Math.abs(drag.a.x-drag.b.x)/cv.width*100)+'%';
+  selEl.style.height = (Math.abs(drag.a.y-drag.b.y)/cv.height*100)+'%';
+  selEl.hidden = false;
+}
+
+async function processRegion(r, mode){
+  stopSpeak();
+  const dir = S.dir==='auto' ? (r.h > r.w*1.35 ? 'v' : 'h') : S.dir;
+  let text = '';
+  busy('正在辨識框選區域文字…');
+  try{
+    const pg = S.pages[S.cur];
+    if(pg.kind==='pdf' && pg.items){
+      const inside = pg.items.filter(it => {
+        const cx = it.x + it.w/2, cy = it.y + it.h/2;
+        return cx >= r.x && cx <= r.x+r.w && cy >= r.y && cy <= r.y+r.h;
+      });
+      const oldFine = S.fineSplit; S.fineSplit = false;
+      text = orderAndMerge(itemsToLines(inside, dir), dir).map(b => b.text).join('，');
+      S.fineSplit = oldFine;
+    } else {
+      const pad = 8, k = r.w < 700 ? Math.min(3, 950/r.w) : 1;
+      const c = document.createElement('canvas');
+      c.width = Math.round((r.w+2*pad)*k); c.height = Math.round((r.h+2*pad)*k);
+      const g = c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height);
+      g.drawImage(cv, r.x-pad, r.y-pad, r.w+2*pad, r.h+2*pad, 0, 0, c.width, c.height);
+      if(S.engine==='gemini' && S.key){
+        try{ text = (await geminiRead(c, true)).map(b => b.text).join('，'); }
+        catch(e){ toast('Gemini 辨識失敗，改用免費辨識。'); }
+      }
+      if(!text){
+        const oldFine = S.fineSplit; S.fineSplit = false;
+        const lines = await tessRun(c, dir, dir==='v' ? 5 : 6);
+        text = orderAndMerge(lines, dir).map(b => b.text).join('，');
+        S.fineSplit = oldFine;
+      }
+    }
+  }catch(e){ console.error(e); toast('框選辨識失敗：'+(e.message||e)); }
+  busy(false);
+  selEl.hidden = true;
+
+  if(mode === 'add'){
+    setDragMode(null);
+    const newBlk = { x:r.x, y:r.y, w:r.w, h:r.h, text: text || '（請點此輸入小題文字）', dir };
+    S.blocks.push(newBlk);
+    S.curBlockIdx = S.blocks.length - 1;
+    savePageEdits(); drawBlocks(); updateNav();
+    $('texts').open = true;
+    const lastEdit = $('textList').lastElementChild?.querySelector('.t');
+    if(lastEdit) lastEdit.focus();
+    if(text) speakBlocks([newBlk], S.curBlockIdx);
+    toast('已新增為第 '+S.blocks.length+' 項！');
+    return;
+  }
+
+  if(!text){ toast('框選處沒有辨識到文字，請框大一點再試。'); return; }
+  const tempBlk = {...r, text, temp:true};
+  S.lastSpoken = { list:[tempBlk], startIdx:-1 };
+  updateNav();
+  speakBlocks([tempBlk], -1);
+}
+
+/* ================= 零延遲即時語音引擎（固定台灣國語・按下立刻報讀） ================= */
+let localVoices = [];
+
+function refreshLocalVoices(){
+  const all = ('speechSynthesis' in window) ? speechSynthesis.getVoices() : [];
+  localVoices = all.filter(v => /^zh|cmn|^en/i.test(v.lang));
+  const rank = v => {
+    const isTw = /TW|Hant|台灣|臺灣|Taiwan/i.test(v.lang + v.name);
+    const isZh = /^zh|cmn/i.test(v.lang);
+    if(isTw && v.localService) return 0; // 本機台灣語音：0 毫秒瞬間發聲、不受網路影響
+    if(isTw) return 1;                   // 雲端台灣語音（無本機語音時自動採用）
+    if(isZh && v.localService) return 2;
+    if(isZh) return 3;
+    return 4;
+  };
+  localVoices.sort((a,b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+}
+if('speechSynthesis' in window){ refreshLocalVoices(); speechSynthesis.onvoiceschanged = refreshLocalVoices; }
+
+let unlocked = false;
+function unlockSpeech(e){
+  if(unlocked) return;
+  unlocked = true;
+  // 若使用者直接點擊題目框或播放鈕，將由該按鈕直接同步發聲，避免塞入空白語音造成排隊延遲
+  if(e && e.target && e.target.closest && e.target.closest('.blk, #bPlayPause, #bReplay, #bPrevQ, #bNextQ, .mini')) return;
+  if('speechSynthesis' in window && !speechSynthesis.speaking){
+    try{ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); }catch(err){}
+  }
+}
+document.addEventListener('pointerdown', unlockSpeech, {once:true, capture:true});
+
+function normalizeCircledForTts(s){
+  let out = s;
+  const ranges = [[0x2460,20,1],[0x2776,10,1],[0x2780,10,1],[0x278a,10,1],[0x2474,10,1]];
+  for(const [start, cnt, first] of ranges){
+    for(let i=0;i<cnt;i++){
+      const ch = String.fromCodePoint(start+i);
+      if(out.includes(ch)) out = out.split(ch).join(`，選項${first+i}，`);
+    }
+  }
+  return out;
+}
+
+function toSpeech(raw){
+  let t = cleanText(raw);
+  t = t.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+  if(S.skipZy){
+    t = t.replace(/([\u4e00-\u9fff])[ㄅ-ㄯㆠ-ㆿˊˇˋ˙]{1,4}/g, '$1');
+  }
+  // 題號最前方的空白作答欄括號（如「（　）1. 今天…」「（　）（　）1 今天…」）直接略過，按下立刻唸題號與題目不拖泥帶水！
+  t = t.replace(/^\s*(?:[（(【\[〔｛\{][\s　_＿]*[）)】\]〕｝\}]\s*)+(?=\d{1,2}\s*[.．、\u4e00-\u9fff「『])/, '');
+  t = normalizeCircledForTts(t);
+
+  if(S.mathWords){
+    t = t.replace(/[（(【\[〔｛\{][\s　_＿]*[）)】\]〕｝\}]/g, '，括號，')
+         .replace(/[_＿﹍﹏]{2,}/g, '，空格，')
+         .replace(/[□▢◻⬜☐▫]/g, '，方格，');
+
+    t = t.replace(/(\d+)\.(\d+)/g, (_, a, b) => `${a}點${b.split('').join(' ')}`);
+    t = t.replace(/(?<![\d])(\d{1,2})\s*[.．]\s*/g, '$1，');
+    // 直式考卷常見無小數點題號（如「１今天天氣…」），補上短頓號讓語音清楚唸出「1，今天…」而不黏字
+    t = t.replace(/^\s*(\d{1,2})\s*(?![0-9.．\/／個隻顆瓶元角分歲秒時點刻天年月日週人位名本枝支張朵台輛架艘座棟間層樓次遍回倍種樣類件雙對副套組群包盒箱袋杯碗盤片塊條根粒滴尺寸里克斤噸升毫升度頁題行格折成號室班級隊步又])(?=[\u4e00-\u9fff「『])/, '$1，');
+
+    t = t.replace(/(\d+)\s*又\s*(\d+)\s*[\/／]\s*(\d+)/g, '$1又$3分之$2');
+    t = t.replace(/(?<![\d\/])(\d{1,3})\s*[\/／]\s*(\d{1,3})(?![\d\/])/g, '$2分之$1');
+    const fracMap = {'½':'二分之一','⅓':'三分之一','⅔':'三分之二','¼':'四分之一','¾':'四分之三'};
+    for(const [k,v] of Object.entries(fracMap)) t = t.split(k).join(v);
+
+    t = t.replace(/km²|km2/gi, '平方公里')
+         .replace(/cm²|cm2/gi, '平方公分')
+         .replace(/mm²|mm2/gi, '平方毫米')
+         .replace(/(?<![a-zA-Z])(?:m²|m2)/gi, '平方公尺')
+         .replace(/cm³|cm3/gi, '立方公分')
+         .replace(/(?<![a-zA-Z])(?:m³|m3)/gi, '立方公尺')
+         .replace(/°C|℃/g, '攝氏度')
+         .replace(/(\d|括號，?|方格，?|空格，?)\s*km(?![a-zA-Z])/g, '$1公里')
+         .replace(/(\d|括號，?|方格，?|空格，?)\s*cm(?![a-zA-Z])/g, '$1公分')
+         .replace(/(\d|括號，?|方格，?|空格，?)\s*mm(?![a-zA-Z])/g, '$1毫米')
+         .replace(/(\d|括號，?|方格，?|空格，?)\s*kg(?![a-zA-Z])/g, '$1公斤')
+         .replace(/(\d|括號，?|方格，?|空格，?)\s*mL(?![a-zA-Z])/gi, '$1毫升');
+
+    t = t.replace(/((?:\d|）|\)|方格|括號|空格)，?)\s*[×xX✕＊*]\s*(?=[，\s]*(?:\d|（|\(|方格|括號|空格))/g, '$1乘以')
+         .replace(/\s*÷\s*/g, '除以')
+         .replace(/\s*[＋+]\s*/g, '加')
+         .replace(/((?:\d|）|\)|方格|括號|空格)，?)\s*[－−—-]\s*(?=[，\s]*(?:\d|（|\(|方格|括號|空格))/g, '$1減')
+         .replace(/\s*[＝=]\s*/g, '等於')
+         .replace(/\s*[＞>]\s*/g, '大於')
+         .replace(/\s*[＜<]\s*/g, '小於');
+  }
+  return t.replace(/\s*，\s*/g, '，').replace(/，{2,}/g, '，').replace(/^，|，$/g, '').trim();
+}
+
+function splitChunks(rawText){
+  const parts = cleanText(rawText).split(/(?<=[。！？；!?;])/);
+  const out = [];
+  for(let p of parts){
+    while(p.length > 68){
+      let cut = p.lastIndexOf('，', 68);
+      if(cut < 18) cut = 68;
+      out.push(p.slice(0, cut+1));
+      p = p.slice(cut+1);
+    }
+    if(p.trim()) out.push(p.trim());
+  }
+  return out;
+}
+
+function renderSubtitle(b, bIdx, activeRawChunk){
+  if(!S.showSub || !b){ $('subBar').hidden = true; return; }
+  $('subBar').hidden = false;
+  $('subTag').textContent = b.temp ? '框選朗讀' : ('第 ' + (bIdx + 1) + ' 項');
+  const box = $('subText');
+  box.dataset.sz = String(S.subSize);
+  const full = cleanText(b.text);
+  if(activeRawChunk && full.includes(activeRawChunk)){
+    const pos = full.indexOf(activeRawChunk);
+    box.innerHTML = '';
+    box.append(
+      document.createTextNode(full.slice(0, pos)),
+      Object.assign(document.createElement('mark'), { textContent: activeRawChunk }),
+      document.createTextNode(full.slice(pos + activeRawChunk.length))
+    );
+    const mk = box.querySelector('mark');
+    if(mk) mk.scrollIntoView({block:'nearest'});
+  } else {
+    box.textContent = full;
+  }
+}
+
+$('bSubSize').addEventListener('click', () => {
+  S.subSize = S.subSize >= 3 ? 1 : S.subSize + 1;
+  store.set('subSize', S.subSize);
+  $('subText').dataset.sz = String(S.subSize);
+});
+$('bSubClose').addEventListener('click', () => { $('subBar').hidden = true; });
+
+let speakSeq = 0, keepUtter = [], activeQueue = [], activeIdx = 0, pendingSpeakTimer = null;
+const IS_IOS_WEBKIT = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+
+function cancelNativeSpeechIfNeeded(){
+  if(!('speechSynthesis' in window)) return false;
+  const active = speechSynthesis.speaking || speechSynthesis.pending || speechSynthesis.paused;
+  if(active){
+    try{ speechSynthesis.cancel(); }catch(e){}
+  }
+  return active;
+}
+
+function stopSpeak(){
+  speakSeq++;
+  if(pendingSpeakTimer){ clearTimeout(pendingSpeakTimer); pendingSpeakTimer = null; }
+  S.speaking = false; S.paused = false;
+  cancelNativeSpeechIfNeeded();
+  markBlock(null);
+  $('subBar').hidden = true;
+  updateNav();
+}
+
+function togglePauseResume(){
+  if(!S.speaking || !('speechSynthesis' in window)) return;
+  if(!S.paused){
+    S.paused = true;
+    speechSynthesis.pause();
+    updatePlayPauseBtnUI();
+  } else {
+    S.paused = false;
+    updatePlayPauseBtnUI();
+    speechSynthesis.resume();
+    setTimeout(() => {
+      if(S.speaking && !S.paused && !speechSynthesis.speaking){
+        activeIdx = Math.max(0, activeIdx - 1);
+        playQueueStep(speakSeq);
+      }
+    }, 220);
+  }
+}
+
+function markBlock(b){
+  document.querySelectorAll('.reading').forEach(n => n.classList.remove('reading'));
+  if(!b) return;
+  if(b.el){
+    b.el.classList.add('reading');
+    b.el.scrollIntoView({block:'nearest', inline:'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+  }
+  if(b.li) b.li.classList.add('reading');
+}
+
+function pickTaiwanVoice(){
+  if(!localVoices.length && 'speechSynthesis' in window) refreshLocalVoices();
+  return localVoices[0] || null;
+}
+
+function speakBlocks(list, startBlockIdx=0){
+  unlocked = true;
+  if(pendingSpeakTimer){ clearTimeout(pendingSpeakTimer); pendingSpeakTimer = null; }
+  const wasSpeaking = cancelNativeSpeechIfNeeded();
+  speakSeq++;
+
+  if(!list || !list.length){
+    S.speaking = false; S.paused = false;
+    markBlock(null); $('subBar').hidden = true; updateNav();
+    return;
+  }
+
+  S.lastSpoken = { list, startIdx: startBlockIdx };
+  const mySeq = ++speakSeq;
+  activeQueue = [];
+  list.forEach((b, offset) => {
+    const bIdx = startBlockIdx >= 0 ? startBlockIdx + offset : -1;
+    splitChunks(b.text).forEach(rawChunk => {
+      const sp = toSpeech(rawChunk);
+      if(sp) activeQueue.push({ b, bIdx, rawChunk, sp });
+    });
+  });
+  if(!activeQueue.length){
+    S.speaking = false; S.paused = false;
+    markBlock(null); updateNav();
+    toast('這一項沒有可朗讀的文字');
+    return;
+  }
+
+  S.speaking = true; S.paused = false; activeIdx = 0;
+  // 按下瞬間立刻給予視覺高亮與放大字幕回饋（0 毫秒）
+  const first = activeQueue[0];
+  if(first.bIdx >= 0) S.curBlockIdx = first.bIdx;
+  if(!first.b.temp) markBlock(first.b);
+  renderSubtitle(first.b, first.bIdx, first.rawChunk);
+  updateNav();
+
+  // 若原本無語音在播（或 iOS 裝置），直接同步 0 毫秒發聲；若剛打斷上一題，微延遲 18ms 避開 Chromium cancel 吞字問題
+  if(!wasSpeaking || IS_IOS_WEBKIT){
+    playQueueStep(mySeq);
+  } else {
+    pendingSpeakTimer = setTimeout(() => {
+      pendingSpeakTimer = null;
+      playQueueStep(mySeq);
+    }, 18);
+  }
+}
+
+function playQueueStep(mySeq){
+  if(mySeq !== speakSeq || S.paused) return;
+  if(activeIdx >= activeQueue.length){
+    S.speaking = false; S.paused = false;
+    markBlock(null); keepUtter = [];
+    updateNav();
+    return;
+  }
+  if(!('speechSynthesis' in window)){
+    toast('此瀏覽器不支援語音合成，請改用 Chrome、Edge 或 Safari。');
+    stopSpeak(); return;
+  }
+
+  const item = activeQueue[activeIdx++];
+  if(item.bIdx >= 0) S.curBlockIdx = item.bIdx;
+  if(!item.b.temp) markBlock(item.b);
+  renderSubtitle(item.b, item.bIdx, item.rawChunk);
+
+  const u = new SpeechSynthesisUtterance(item.sp);
+  const v = pickTaiwanVoice();
+  if(v){ u.voice = v; u.lang = v.lang; } else { u.lang = 'zh-TW'; }
+  u.rate = S.rate;
+  u.onend = () => playQueueStep(mySeq);
+  u.onerror = () => playQueueStep(mySeq);
+  if(keepUtter.length > 12) keepUtter.shift();
+  keepUtter.push(u);
+  speechSynthesis.speak(u);
+}
+
+/* ================= 學生鎖定模式 ================= */
+function applyStudentModeUI(){
+  const locked = S.studentMode;
+  $('bSet').hidden = locked;
+  $('bToggleCabinet').hidden = locked;
+  $('bLockToggle').hidden = locked;
+  $('bUnlock').hidden = !locked;
+  $('texts').hidden = locked;
+  $('teacherPaperTools').hidden = locked;
+  if(locked){
+    $('cabinetSection').hidden = true;
+    if(S.dragMode === 'add') setDragMode(null);
+  }
+  updateBannerUI();
+}
+applyStudentModeUI();
+
+$('bLockToggle').addEventListener('click', () => {
+  S.studentMode = true;
+  applyStudentModeUI();
+  toast('已進入「🎓 學生模式」：派卷區與設定已隱藏，長按右上角可解鎖。', 4200);
+});
+
+let holdTimer = null, holdStart = 0;
+function stopHold(){ clearInterval(holdTimer); holdTimer = null; $('unlockFill').style.width = '0%'; }
+$('bUnlock').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  holdStart = performance.now();
+  clearInterval(holdTimer);
+  holdTimer = setInterval(() => {
+    const pct = Math.min(100, (performance.now() - holdStart) / 1400 * 100);
+    $('unlockFill').style.width = pct + '%';
+    if(pct >= 100){
+      stopHold();
+      if(S.lockPin){
+        const ans = prompt('請輸入老師設定的解鎖密碼：');
+        if(ans !== S.lockPin){ toast('密碼不正確'); return; }
+      }
+      S.studentMode = false;
+      applyStudentModeUI();
+      toast('已解鎖回「老師模式」');
+    }
+  }, 40);
+});
+['pointerup','pointerleave','pointercancel'].forEach(ev => $('bUnlock').addEventListener(ev, stopHold));
+
+/* ================= 檔案匯入、拖放與剪貼簿貼上 ================= */
+function setDir(d){
+  S.dir = d; store.set('dir', d);
+  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.dir === d)));
+}
+setDir(S.dir);
+document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+  if(S.dir === b.dataset.dir) return;
+  setDir(b.dataset.dir);
+  if(S.pages.length) showPage(S.cur);
+}));
+
+function formatRateLabel(r){
+  const s = r.toFixed(2).replace(/\.00$/, '.0').replace(/(\.\d)0$/, '$1');
+  return s + ' 倍';
+}
+function syncSpeedUI(){
+  $('rate').value = S.rate;
+  $('rateVal').textContent = formatRateLabel(S.rate);
+  document.querySelectorAll('.speed-pill').forEach(btn => {
+    btn.setAttribute('aria-pressed', String(Math.abs(parseFloat(btn.dataset.rate) - S.rate) < 0.01));
+  });
+}
+function setRate(val, liveApply=false){
+  const clamped = Math.max(0.5, Math.min(1.6, Math.round(val * 20) / 20));
+  S.rate = clamped;
+  store.set('rate', S.rate);
+  syncSpeedUI();
+  // 若正在朗讀中調整速度，立刻以新語速從當前句子無縫重讀！
+  if(liveApply && S.speaking && !S.paused && activeQueue.length){
+    if(pendingSpeakTimer){ clearTimeout(pendingSpeakTimer); pendingSpeakTimer = null; }
+    cancelNativeSpeechIfNeeded();
+    activeIdx = Math.max(0, activeIdx - 1);
+    const mySeq = ++speakSeq;
+    if(IS_IOS_WEBKIT){
+      playQueueStep(mySeq);
+    } else {
+      pendingSpeakTimer = setTimeout(() => { pendingSpeakTimer = null; playQueueStep(mySeq); }, 18);
+    }
+  }
+}
+syncSpeedUI();
+$('rate').addEventListener('input', e => setRate(+e.target.value, false));
+$('rate').addEventListener('change', e => {
+  setRate(+e.target.value, true);
+  if(!S.studentMode) renderCabinetList();
+});
+$('bRateDown').addEventListener('click', () => {
+  setRate(S.rate - 0.1, true);
+  if(!S.studentMode) renderCabinetList();
+});
+$('bRateUp').addEventListener('click', () => {
+  setRate(S.rate + 0.1, true);
+  if(!S.studentMode) renderCabinetList();
+});
+document.querySelectorAll('.speed-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    setRate(parseFloat(btn.dataset.rate), true);
+    if(!S.studentMode) renderCabinetList();
+  });
+});
+
+['bCam','bCam2'].forEach(id => $(id).addEventListener('click', () => $('fCam').click()));
+['bOpen','bOpen2'].forEach(id => $(id).addEventListener('click', () => $('fOpen').click()));
+
+async function handleIncomingFiles(files, appendPhotos=false){
+  if(!files || !files.length) return;
+  S.activeCabExamId = null;
+  const pdf = files.find(f => f.type==='application/pdf' || /\.pdf$/i.test(f.name));
+  if(pdf){
+    S.examTitle = pdf.name.replace(/\.pdf$/i, '');
+    await loadPdf(await pdf.arrayBuffer(), pdf.name);
+    return;
+  }
+  const imgs = files.filter(f => f.type.startsWith('image/') || /\.(png|jpe?g|webp|bmp|gif)$/i.test(f.name));
+  if(!imgs.length){ toast('請選擇 PDF 考卷或圖片檔案'); return; }
+  if(!appendPhotos) S.examTitle = (imgs[0].name || '拍照考卷').replace(/\.[^.]+$/, '');
+  await addImages(imgs, !appendPhotos);
+}
+
+$('fOpen').addEventListener('change', async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  await handleIncomingFiles(files, false);
+});
+$('fCam').addEventListener('change', async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  const append = S.pages.length && S.pages[0].kind === 'img';
+  await handleIncomingFiles(files, append);
+  if(append) toast('已接續加入第 '+S.pages.length+' 頁考卷照片');
+});
+
+async function addImages(files, replace){
+  busy('正在讀取並處理考卷影像…');
+  try{
+    const items = [];
+    for(const f of files){
+      const rawCanvas = await fileToCanvas(f);
+      items.push({ kind:'img', rawCanvas, enhancedCanvas:null, useEnhance:S.photoEnhance, rot:0 });
+    }
+    if(replace){
+      S.pages = []; S.pdf = null; S.cache.clear();
+      const f0 = files[0];
+      S.docId = 'img_' + (f0.name||'photo').replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g,'').slice(0,20) + '_' + (f0.size||0);
+    }
+    const start = S.pages.length;
+    items.forEach(it => S.pages.push(it));
+    await showPage(start);
+  }catch(e){
+    console.error(e); busy(false);
+    toast('照片讀取失敗，請換一張再試。');
+  }
+}
+
+let dragDepth = 0;
+window.addEventListener('dragenter', e => {
+  if(e.dataTransfer && [...e.dataTransfer.types].includes('Files')){
+    dragDepth++; $('dropMask').hidden = false; $('empty').classList.add('dragover');
+  }
+});
+window.addEventListener('dragover', e => { if(dragDepth > 0) e.preventDefault(); });
+window.addEventListener('dragleave', () => {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if(!dragDepth){ $('dropMask').hidden = true; $('empty').classList.remove('dragover'); }
+});
+window.addEventListener('drop', async e => {
+  if(!e.dataTransfer || !e.dataTransfer.files.length) return;
+  e.preventDefault();
+  dragDepth = 0; $('dropMask').hidden = true; $('empty').classList.remove('dragover');
+  await handleIncomingFiles([...e.dataTransfer.files], false);
+});
+
+window.addEventListener('paste', async e => {
+  const active = document.activeElement;
+  if(active && (active.tagName==='INPUT' || active.tagName==='TEXTAREA' || active.isContentEditable)) return;
+  const files = [...(e.clipboardData?.files || [])];
+  if(!files.length) return;
+  e.preventDefault();
+  const append = S.pages.length && S.pages[0].kind === 'img';
+  await handleIncomingFiles(files, append);
+  toast('已貼上剪貼簿考卷截圖！');
+});
+
+/* ================= 考卷操作與朗讀導航按鈕 ================= */
+$('bPrev').addEventListener('click', () => { if(S.cur > 0) showPage(S.cur - 1); });
+$('bNext').addEventListener('click', () => { if(S.cur < S.pages.length - 1) showPage(S.cur + 1); });
+
+$('bRot').addEventListener('click', () => {
+  const pg = S.pages[S.cur]; if(!pg || pg.kind !== 'img') return;
+  pg.rawCanvas = rotateCanvas(pg.rawCanvas);
+  pg.enhancedCanvas = null;
+  pg.rot = ((pg.rot||0) + 90) % 360;
+  localStorage.removeItem(editStorageKey(S.cur));
+  showPage(S.cur, true);
+});
+$('bEnhance').addEventListener('click', () => {
+  const pg = S.pages[S.cur]; if(!pg || pg.kind !== 'img') return;
+  pg.useEnhance = !pg.useEnhance;
+  showPage(S.cur);
+});
+$('bReOcr').addEventListener('click', () => {
+  if(!S.pages.length) return;
+  localStorage.removeItem(editStorageKey(S.cur));
+  S.cache.delete(cacheKey(S.cur));
+  showPage(S.cur, true);
+});
+
+$('bPlayPause').addEventListener('click', () => {
+  if(S.speaking){ togglePauseResume(); return; }
+  if(!S.blocks.length){ toast('這一頁還沒有可朗讀的小題，可用「✋ 框選朗讀」。'); return; }
+  const start = S.curBlockIdx >= 0 && S.curBlockIdx < S.blocks.length ? S.curBlockIdx : 0;
+  speakBlocks(S.blocks.slice(start), start);
+});
+$('bPrevQ').addEventListener('click', () => {
+  if(!S.blocks.length) return;
+  const idx = S.curBlockIdx > 0 ? S.curBlockIdx - 1 : 0;
+  S.curBlockIdx = idx; speakBlocks([S.blocks[idx]], idx);
+});
+$('bNextQ').addEventListener('click', () => {
+  if(!S.blocks.length) return;
+  const idx = S.curBlockIdx < S.blocks.length - 1 ? S.curBlockIdx + 1 : 0;
+  S.curBlockIdx = idx; speakBlocks([S.blocks[idx]], idx);
+});
+$('bReplay').addEventListener('click', () => {
+  if(S.lastSpoken && S.lastSpoken.list.length) speakBlocks(S.lastSpoken.list, S.lastSpoken.startIdx);
+  else if(S.blocks.length){ const idx = Math.max(0, S.curBlockIdx); speakBlocks([S.blocks[idx]], idx); }
+});
+$('bStop').addEventListener('click', stopSpeak);
+
+window.addEventListener('keydown', e => {
+  const tag = document.activeElement?.tagName;
+  if(tag==='INPUT' || tag==='TEXTAREA' || tag==='SELECT' || document.activeElement?.isContentEditable || $('dlg').open || $('qrDlg').open) return;
+  if(e.code === 'Space' && S.pages.length){ e.preventDefault(); $('bPlayPause').click(); }
+  else if(e.key === 'ArrowLeft' && S.blocks.length){ e.preventDefault(); $('bPrevQ').click(); }
+  else if(e.key === 'ArrowRight' && S.blocks.length){ e.preventDefault(); $('bNextQ').click(); }
+  else if((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && S.pages.length){ e.preventDefault(); $('bReplay').click(); }
+  else if(e.key === 'PageUp' && S.cur > 0){ e.preventDefault(); showPage(S.cur - 1); }
+  else if(e.key === 'PageDown' && S.cur < S.pages.length - 1){ e.preventDefault(); showPage(S.cur + 1); }
+  else if(e.key === 'Escape'){ if(S.dragMode) setDragMode(null); else stopSpeak(); }
+});
+
+/* ================= 匯出／匯入校對 JSON ================= */
+$('bExportJson').addEventListener('click', () => {
+  if(!S.blocks.length){ toast('目前頁面沒有項目可匯出'); return; }
+  const payload = { version:3, docId:S.docId, page:S.cur+1, dir:S.dir, blocks:S.blocks.map(({x,y,w,h,text,dir})=>({x,y,w,h,text,dir})) };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${S.examTitle||'考卷'}_第${S.cur+1}頁校對.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+});
+$('bImportJson').addEventListener('click', () => $('fJson').click());
+$('fJson').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if(!f) return;
+  try{
+    const j = JSON.parse(await f.text());
+    const arr = Array.isArray(j) ? j : j.blocks;
+    if(!Array.isArray(arr) || !arr.length) throw new Error('bad');
+    S.blocks = arr.map(b => ({x:+b.x||0, y:+b.y||0, w:+b.w||100, h:+b.h||40, text:String(b.text||''), dir:b.dir==='v'?'v':'h'}));
+    savePageEdits(); drawBlocks(); updateNav();
+    toast('已匯入 '+S.blocks.length+' 個小題項目！');
+  }catch(err){ toast('匯入失敗：請確認選擇正確的 .json 校對檔'); }
+});
+$('bResetEdits').addEventListener('click', () => {
+  if(!S.pages.length) return;
+  localStorage.removeItem(editStorageKey(S.cur));
+  S.cache.delete(cacheKey(S.cur));
+  showPage(S.cur, true);
+});
+
+/* ================= 老師設定對話框 ================= */
+function syncModelUI(modelStr){
+  if(PRESET_MODELS.includes(modelStr)){
+    $('modelPreset').value = modelStr; $('modelCustom').hidden = true;
+  } else {
+    $('modelPreset').value = 'custom'; $('modelCustom').hidden = false; $('modelCustom').value = modelStr;
+  }
+}
+$('modelPreset').addEventListener('change', () => { $('modelCustom').hidden = $('modelPreset').value !== 'custom'; });
+function getSelectedModel(){
+  return $('modelPreset').value === 'custom' ? ($('modelCustom').value.trim() || 'gemini-2.5-flash') : $('modelPreset').value;
+}
+
+function fillSettings(){
+  $('engTess').checked = S.engine === 'tess';
+  $('engGem').checked = S.engine === 'gemini';
+  $('apiKey').value = S.key;
+  syncModelUI(S.model);
+  $('optFineSplit').checked = S.fineSplit;
+  $('optZy').checked = S.skipZy;
+  $('optMath').checked = S.mathWords;
+  $('optSub').checked = S.showSub;
+  $('optPhotoEnhance').checked = S.photoEnhance;
+  $('lockPin').value = S.lockPin;
+  $('incKeyInCab').checked = S.incKeyInCab;
+}
+
+$('bSet').addEventListener('click', () => { fillSettings(); $('dlg').showModal(); });
+$('dlg').addEventListener('close', () => {
+  if($('dlg').returnValue === 'close') return;
+  const oldEngine = S.engine, oldZy = S.skipZy, oldFine = S.fineSplit;
+  S.engine = $('engGem').checked ? 'gemini' : 'tess';
+  S.key = $('apiKey').value.trim();
+  S.model = getSelectedModel();
+  S.fineSplit = $('optFineSplit').checked;
+  S.skipZy = $('optZy').checked;
+  S.mathWords = $('optMath').checked;
+  S.showSub = $('optSub').checked;
+  S.photoEnhance = $('optPhotoEnhance').checked;
+  S.lockPin = $('lockPin').value.trim();
+  S.incKeyInCab = $('incKeyInCab').checked;
+
+  store.set('engine', S.engine); store.set('key', S.key); store.set('model', S.model);
+  store.set('fineSplit', S.fineSplit); store.set('skipZy', S.skipZy); store.set('mathWords', S.mathWords);
+  store.set('showSub', S.showSub); store.set('photoEnhance', S.photoEnhance);
+  store.set('lockPin', S.lockPin); store.set('incKeyInCab', S.incKeyInCab);
+
+  if(!S.showSub) $('subBar').hidden = true;
+  if(!S.studentMode) renderCabinetList();
+  if((oldEngine !== S.engine || oldZy !== S.skipZy || oldFine !== S.fineSplit) && S.pages.length){
+    showPage(S.cur, true);
+  }
+});
+
+$('bClearAllCache').addEventListener('click', () => {
+  S.cache.clear();
+  store.delPrefix('erh_ed_');
+  toast('已清除本機辨識快取紀錄');
+});
+
+/* ================= 啟動初始化 ================= */
+updateNav();
+if(S.incomingRoom && S.incomingExamId){
+  fetchExamAsStudent(S.incomingRoom, S.incomingExamId);
+} else {
+  if(!S.studentMode) renderCabinetList();
+  if(S.autoPdf){
+    (async () => {
+      busy('正在載入考卷…');
+      try{
+        const r = await fetch(S.autoPdf);
+        if(!r.ok) throw new Error(r.status);
+        await loadPdf(await r.arrayBuffer(), S.autoPdf.split('/').pop() || 'exam.pdf');
+      }catch(e){ busy(false); toast('找不到指定的 PDF（'+S.autoPdf+'）', 5000); }
+    })();
+  }
+}
+</script>
+</body>
+</html>
