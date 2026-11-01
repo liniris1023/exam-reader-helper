@@ -21,6 +21,8 @@
   --r:14px;
   color-scheme:light;
 }
+.site-foot{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;padding:8px 16px 24px;max-width:1300px;margin:0 auto}
+.site-foot .site-qr{margin:0;flex:1 1 360px}
 .site-qr{display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center;margin:26px auto 4px;padding:16px 20px;max-width:620px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);text-align:left}
 .site-qr-code{background:#fff;padding:10px;border-radius:10px;line-height:0;flex:none}
 .site-qr-code img,.site-qr-code canvas{display:block;width:150px;height:150px}
@@ -358,7 +360,7 @@ a{color:var(--accent)}
   window.EdgeTTSModule = { EdgeTTS };
   window.dispatchEvent(new CustomEvent('edgetts-ready'));
 </script>
-<!-- erh-build: 2026-11-01 老師端／學生端分頁 -->
+<!-- erh-build: 2026-11-01 兩端最下方網站 QR Code -->
 </head>
 <body>
 
@@ -465,16 +467,6 @@ a{color:var(--accent)}
       </div>
     </div>
 
-    <!-- 首頁底部：本網站 QR Code（平板掃描即可打開評量報讀小幫手） -->
-    <div class="site-qr t-only" id="siteQrCard">
-      <div class="site-qr-code" id="siteQrBox" aria-label="評量報讀小幫手網址 QR Code"></div>
-      <div class="site-qr-info">
-        <b>🎓 學生端 QR Code</b>
-        <span>學生用平板掃描，就會打開「學生端」：可以掃老師的考卷 QR Code 領卷，或拍照立即報讀。老師端（本頁）用來上傳考卷、產生考卷 QR Code。</span>
-        <code id="siteQrUrl"></code>
-        <button class="btn sm" id="bSiteQrSave" type="button">⬇️ 下載 QR Code 圖片</button>
-      </div>
-    </div>
   </section>
 
   <!-- 考卷檢視與點讀區 -->
@@ -526,6 +518,28 @@ a{color:var(--accent)}
     </details>
   </section>
 </main>
+
+<!-- 網站最下面：網站 QR Code（老師端顯示老師端＋學生端，學生端只顯示學生端） -->
+<footer class="site-foot" id="siteFoot">
+  <div class="site-qr t-only">
+    <div class="site-qr-code" id="siteQrBoxT" aria-label="老師端網址 QR Code"></div>
+    <div class="site-qr-info">
+      <b>👩‍🏫 老師端 QR Code</b>
+      <span>老師用來上傳考卷、產生每份考卷的 QR Code。</span>
+      <code id="siteQrUrlT"></code>
+      <button class="btn sm" type="button" data-qr-save="T">⬇️ 下載 QR Code 圖片</button>
+    </div>
+  </div>
+  <div class="site-qr">
+    <div class="site-qr-code" id="siteQrBoxS" aria-label="學生端網址 QR Code"></div>
+    <div class="site-qr-info">
+      <b>🎓 學生端 QR Code</b>
+      <span>學生用平板掃描就能打開學生端：掃老師的考卷 QR Code 領卷，或拍照立即報讀。</span>
+      <code id="siteQrUrlS"></code>
+      <button class="btn sm" type="button" data-qr-save="S">⬇️ 下載 QR Code 圖片</button>
+    </div>
+  </div>
+</footer>
 
 <!-- 列印全部學生 QR Code 小卡專用容器 -->
 <section id="printSheet" aria-hidden="true"></section>
@@ -2223,16 +2237,27 @@ function getStudentPageUrl(){
   const root = /^https?:/.test(base) && !/localhost|127\.0\.0\.1/.test(base) ? base.replace(/[^/]*$/, '') : SITE_PUBLIC_URL;
   return root + 'student.html';
 }
+// 老師端網址（index.html）
+function getTeacherPageUrl(){ return getStudentPageUrl().replace(/student\.html$/, ''); }
+const SITE_QR = {
+  T: { box:'siteQrBoxT', code:'siteQrUrlT', url:() => getTeacherPageUrl(), label:'評量報讀小幫手・老師端', file:'評量報讀小幫手_老師端_QRCode.png' },
+  S: { box:'siteQrBoxS', code:'siteQrUrlS', url:() => getStudentPageUrl(), label:'評量報讀小幫手・學生端', file:'評量報讀小幫手_學生端_QRCode.png' }
+};
 function renderSiteQr(){
-  const box = $('siteQrBox');
-  if(!box || typeof QRCode === 'undefined') return;
-  const url = getStudentPageUrl();
-  box.innerHTML = '';
-  try{ new QRCode(box, { text:url, width:300, height:300, correctLevel: QRCode.CorrectLevel.M }); }catch(e){ return; }
-  $('siteQrUrl').textContent = url;
+  if(typeof QRCode === 'undefined') return;
+  for(const [k, q] of Object.entries(SITE_QR)){
+    if(k === 'T' && S.studentMode) continue; // 學生端不產生老師端 QR Code
+    const box = $(q.box);
+    if(!box) continue;
+    const url = q.url();
+    box.innerHTML = '';
+    try{ new QRCode(box, { text:url, width:300, height:300, correctLevel: QRCode.CorrectLevel.M }); }catch(e){ continue; }
+    $(q.code).textContent = url;
+  }
 }
-$('bSiteQrSave').addEventListener('click', () => {
-  const box = $('siteQrBox');
+document.querySelectorAll('[data-qr-save]').forEach(btn => btn.addEventListener('click', () => {
+  const q = SITE_QR[btn.dataset.qrSave];
+  const box = $(q.box);
   const cvs = box.querySelector('canvas'), img = box.querySelector('img');
   const src = (img && img.src && img.src.startsWith('data:')) ? img.src : (cvs ? cvs.toDataURL('image/png') : '');
   if(!src){ toast('QR Code 尚未產生，請稍候再試'); return; }
@@ -2245,13 +2270,13 @@ $('bSiteQrSave').addEventListener('click', () => {
     g.fillStyle = '#fff'; g.fillRect(0,0,W,H);
     g.drawImage(pic, pad, pad);
     g.fillStyle = '#0f7b6c'; g.font = 'bold 28px sans-serif'; g.textAlign = 'center';
-    g.fillText('評量報讀小幫手・學生端', W/2, H - 34);
+    g.fillText(q.label, W/2, H - 34);
     const a = document.createElement('a');
-    a.href = c.toDataURL('image/png'); a.download = '評量報讀小幫手_學生端_QRCode.png';
+    a.href = c.toDataURL('image/png'); a.download = q.file;
     document.body.appendChild(a); a.click(); a.remove();
   };
   pic.src = src;
-});
+}));
 setTimeout(renderSiteQr, 0);
 
 function buildStudentExamUrl(exam){
