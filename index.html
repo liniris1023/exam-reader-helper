@@ -807,7 +807,7 @@ function median(arr, fb=16){
 }
 
 /* ================= 編輯紀錄持久化 ================= */
-function editStorageKey(pageIdx){ return 'erh_ed_v5_' + S.docId + '_p' + pageIdx + '_' + S.dir + '_' + (S.fineSplit?1:0); }
+function editStorageKey(pageIdx){ return 'erh_ed_v6_' + S.docId + '_p' + pageIdx + '_' + S.dir + '_' + (S.fineSplit?1:0); }
 function savePageEdits(){
   if(!S.pages.length) return;
   const slim = S.blocks.map(b => ({x:Math.round(b.x), y:Math.round(b.y), w:Math.round(b.w), h:Math.round(b.h), text:b.text, dir:b.dir||'h'}));
@@ -856,6 +856,15 @@ const WORD_FILL_HEAD = /選詞填寫|選詞|填入適當|選出適當的詞/;
 // 選詞填寫的詞庫列（如「豐饒、風靡、饗宴、拱手讓人」：兩字到四字一組、無句號），整列當一個框
 const WORD_BANK_RE = /^(?:[\u4e00-\u9fff]{2,4}[、\s　]+){2,}[\u4e00-\u9fff]{2,4}$/;
 function isWordBank(text){ return WORD_BANK_RE.test((text || '').trim()); }
+// 詞庫列拆成一個一個語詞，回傳每個語詞在字串中的 [起點, 終點]（讓每個語詞都能獨立報讀）
+function splitWordBankParts(str){
+  if(!str || !isWordBank(str)) return null;
+  const parts = [];
+  const re = /[\u4e00-\u9fff]+/g;
+  let m;
+  while((m = re.exec(str)) !== null) parts.push([m.index, m.index + m[0].length - 1]);
+  return parts.length >= 2 ? parts : null;
+}
 
 function findInlineSplitOffsets(str){
   if(!S.fineSplit || !str || str.length < 4) return [];
@@ -913,6 +922,21 @@ function findInlineSplitOffsets(str){
 
 // 將單一 OCR 行（無逐字座標時）依字元比例切分為多個獨立小題/選項區塊
 function splitLineBlockByInlineMarkers(lineObj, dir){
+  if(lineObj.wb) return [lineObj];
+  // 詞庫列（OCR 沒有逐字座標）：先把語詞之間的空白換成頓號，再依字數比例切成每個語詞一框
+  if(S.fineSplit){
+    const wbStr = normVertPunct(lineObj.text || '').replace(/([\u4e00-\u9fff])[\s　]+(?=[\u4e00-\u9fff])/g, '$1、').trim();
+    const parts = splitWordBankParts(wbStr);
+    if(parts){
+      const total = Math.max(1, wbStr.length);
+      return parts.map(([cs, ce]) => {
+        const f0 = cs / total, f1 = (ce + 1) / total;
+        return dir === 'v'
+          ? {x:lineObj.x, y:lineObj.y + f0 * lineObj.h, w:lineObj.w, h:Math.max(10, (f1 - f0) * lineObj.h), text:wbStr.slice(cs, ce + 1), conf:lineObj.conf, wb:true}
+          : {x:lineObj.x + f0 * lineObj.w, y:lineObj.y, w:Math.max(14, (f1 - f0) * lineObj.w), h:lineObj.h, text:wbStr.slice(cs, ce + 1), conf:lineObj.conf, wb:true};
+      });
+    }
+  }
   const text = cleanText(lineObj.text);
   if(!text) return [];
   const cuts = findInlineSplitOffsets(text);
@@ -1034,6 +1058,7 @@ function splitPdfItemsLine(sortedItems, dir, extraMeta=null){
   if(!sortedItems.length) return [];
   let fullStr = '';
   const charToItemIdx = [];
+  const charOff = [], charN = []; // 每個字在原文字片段中的位置，用來估算單一語詞的座標
   let prevIt = null;
 
   for(let idx = 0; idx < sortedItems.length; idx++){
@@ -1049,6 +1074,10 @@ function splitPdfItemsLine(sortedItems, dir, extraMeta=null){
       // 若為句子內填空大括號「（　　　　）」，在開括號與閉括號間補全形空白，確保呈現「（　）」並唸出「括號」
       if(/[（(【\[〔｛\{]$/.test(prevNorm) && /^[)）】\]〕｝\}]/.test(normStr) && gap > unit * 0.25){
         fullStr += '　';
+        charToItemIdx.push(idx);
+      } else if(dir === 'h' && gap > unit * 1.2 && /[\u4e00-\u9fff]$/.test(fullStr) && /^[\u4e00-\u9fff]/.test(normStr)){
+        // 橫式兩個漢字之間有明顯空隔（詞庫的詞與詞之間），補頓號
+        fullStr += '、';
         charToItemIdx.push(idx);
       } else if(dir === 'h' && gap > Math.max(2.5, unit * 0.32)){
         if(/[A-Za-z0-9.,!?:;)）。！？]$/.test(fullStr) || /^[（(①-⑳❶-❿⑴-⑽A-Da-d0-9]/.test(normStr)){
@@ -1070,11 +1099,33 @@ function splitPdfItemsLine(sortedItems, dir, extraMeta=null){
         }
       }
     }
+    const nChars = [...normStr].length;
+    let off = 0;
     for(const ch of normStr){
       fullStr += ch;
       charToItemIdx.push(idx);
+      charOff[charToItemIdx.length - 1] = off++;
+      charN[charToItemIdx.length - 1] = nChars;
     }
     prevIt = it;
+  }
+
+  // 詞庫列（選詞填寫上方的語詞）：每個語詞各自一框，可獨立報讀
+  const wbParts = S.fineSplit ? splitWordBankParts(fullStr) : null;
+  if(wbParts){
+    const charBox = k => {
+      const it = sortedItems[charToItemIdx[k]];
+      const n = charN[k] || 1, o = charOff[k] || 0;
+      if(n <= 1) return {x:it.x, y:it.y, w:it.w, h:it.h};
+      return dir === 'v'
+        ? {x:it.x, y:it.y + o * it.h / n, w:it.w, h:it.h / n}
+        : {x:it.x + o * it.w / n, y:it.y, w:it.w / n, h:it.h};
+    };
+    return wbParts.map(([cs, ce]) => {
+      let box = charBox(cs);
+      for(let k = cs + 1; k <= ce; k++) box = union(box, charBox(k));
+      return {...box, text: fullStr.slice(cs, ce + 1), wb: true, ...(extraMeta||{})};
+    });
   }
 
   const cuts = findInlineSplitOffsets(fullStr);
@@ -1132,6 +1183,7 @@ function mergeHorizontalColumn(rows){
       // 若上一行是大題標題、完整句尾括號改錯題、已完成之無題號獨立句（如表格框線型改錯題）、或下一行是新題號／空白作答括號開頭，絕不合併！
       const canMerge = gap < 0.72*avgH && gap > -0.35*avgH && aligned
         && !QNUM.test(r.text)
+        && !r.wb && !cur.wb
         && !ENDS_COMPLETE_ITEM.test(cur.text)
         && !isCompleteSectionHead(cur.text)
         && !isFinishedUnnumberedSentence(cur.text)
@@ -1144,7 +1196,7 @@ function mergeHorizontalColumn(rows){
       }
       out.push(cur);
     }
-    cur = {x:r.x, y:r.y, w:r.w, h:r.h, text:r.text, dir:'h', last:r};
+    cur = {x:r.x, y:r.y, w:r.w, h:r.h, text:r.text, dir:'h', last:r, ...(r.wb ? {wb:true} : {})};
   }
   if(cur) out.push(cur);
   return out;
@@ -1246,7 +1298,7 @@ function mergeVerticalTrackSegments(lines, rules){
         if(gap < -0.3 * avgW || gap > 9 * avgW) continue;
         if(gap < bestGap){ best = b; bestGap = gap; }
       }
-      if(!best || !canJoinVertSegments(cur.text, best.text, cur.y + cur.h, best.y, rules)) break;
+      if(!best || cur.wb || best.wb || !canJoinVertSegments(cur.text, best.text, cur.y + cur.h, best.y, rules)) break;
       used.add(best);
       const txt = joinVertSegments(cur.text, best.text, bestGap, avgW);
       Object.assign(cur, union(cur, best));
@@ -1297,17 +1349,14 @@ function orderAndMerge(rawLines, dir, pageW=0, rules=[]){
           const gap = cur.last.x - (c.x + c.w);
           const sameTop = Math.abs(c.y - cur.last.y) < Math.max(2.2*avgW, 0.25*cur.last.h);
           const ruleBetween = crossesHorizontalRule(Math.min(cur.y, c.y) + 2, Math.max(cur.y + cur.h, c.y + c.h) - 2, rules) && Math.abs(c.y - cur.last.y) > avgW;
-          // 詞庫列：相鄰兩欄都是詞庫就合成一框；詞庫不可與題目互相合併
-          const bankA = isWordBank(cur.text), bankB = isWordBank(c.text);
-          if(bankA && bankB && !sameCol && gap < 1.6*avgW){
-            Object.assign(cur, union(cur, c)); cur.text = cur.text + '、' + c.text; cur.last = c; continue;
-          }
+          // 詞庫的每個語詞各自一框，不與其他語詞或題目合併
+          const bankA = !!cur.wb || isWordBank(cur.text), bankB = !!c.wb || isWordBank(c.text);
           if(!sameCol && gap < 0.95*avgW && sameTop && !ruleBetween && !bankA && !bankB && !QNUM.test(c.text) && !ENDS_COMPLETE_ITEM.test(cur.text) && !isCompleteSectionHead(cur.text) && !isFinishedUnnumberedSentence(cur.text) && !isStandaloneOptionOrShortSub(cur.text)){
             Object.assign(cur, union(cur, c)); cur.text = joinText(cur.text, c.text); cur.last = c; continue;
           }
           out.push(cur);
         }
-        cur = {x:c.x, y:c.y, w:c.w, h:c.h, text:c.text, dir:'v', last:c};
+        cur = {x:c.x, y:c.y, w:c.w, h:c.h, text:c.text, dir:'v', last:c, ...(c.wb ? {wb:true} : {})};
       }
       if(cur) out.push(cur);
     }
@@ -1959,8 +2008,8 @@ async function geminiRead(canvas, isCrop){
   const granRule = isCrop
     ? '這是框選區域，請把全部文字照順序合成「一個」項目即可。'
     : (S.fineSplit
-      ? '【極重要：每一小題、國語改錯題每一題、與每個選項都要拆開獨立報讀！】大題說明標題自成一項；每一題的「題幹（含題號與開頭作答括號）」獨立一項；國語「改錯字」大題中的每一題（無論是單括號「（　）1.…」、雙括號「（　）（　）１…」、無題號僅括號「（　）句子…」、句尾括號「句子。（　）」、或表格框線內的每一句）都必須各自拆成獨立的一個項目，絕不可把多題改錯字合併！「選詞填寫」大題：上方詞庫（如「豐饒 風靡 饗宴 拱手讓人」）整列合成一項；每一題（包含中間的填空括號以及括號前後的文字，即使跨到下一行或下一欄）合成一項，絕不可把括號前後拆成兩項；不可跨越大題之間的分隔橫線合併，上排題目與下排題目一定分開；題組底下的每一個子題（如 (1)、(2)、⑴、⑵、填充小題、計算小題）各自獨立一項；選擇題的「每一個選項（如 ①…、②…、③…、④… 或 (A)…、(B)…）」也請務必各自拆成獨立的一個項目並給出該選項精準的 box_2d 座標！頁首的班級姓名座號欄請省略。'
-      : '每一小題（題號、題幹、國語改錯題每一題、子題）各自獨立成一個項目；選詞填寫的詞庫整列一項、每一題含填空括號前後文字合成一項；不可跨越大題分隔線合併；大題說明自成一項；頁首姓名座號欄省略。');
+      ? '【極重要：每一小題、國語改錯題每一題、與每個選項都要拆開獨立報讀！】大題說明標題自成一項；每一題的「題幹（含題號與開頭作答括號）」獨立一項；國語「改錯字」大題中的每一題（無論是單括號「（　）1.…」、雙括號「（　）（　）１…」、無題號僅括號「（　）句子…」、句尾括號「句子。（　）」、或表格框線內的每一句）都必須各自拆成獨立的一個項目，絕不可把多題改錯字合併！「選詞填寫」大題：上方詞庫（如「豐饒 風靡 饗宴 拱手讓人」）的每一個語詞都要各自獨立一項並給出該語詞精準的 box_2d；每一題（包含中間的填空括號以及括號前後的文字，即使跨到下一行或下一欄）合成一項，絕不可把括號前後拆成兩項；不可跨越大題之間的分隔橫線合併，上排題目與下排題目一定分開；題組底下的每一個子題（如 (1)、(2)、⑴、⑵、填充小題、計算小題）各自獨立一項；選擇題的「每一個選項（如 ①…、②…、③…、④… 或 (A)…、(B)…）」也請務必各自拆成獨立的一個項目並給出該選項精準的 box_2d 座標！頁首的班級姓名座號欄請省略。'
+      : '每一小題（題號、題幹、國語改錯題每一題、子題）各自獨立成一個項目；選詞填寫的詞庫每個語詞各自一項、每一題含填空括號前後文字合成一項；不可跨越大題分隔線合併；大題說明自成一項；頁首姓名座號欄省略。');
 
   const prompt = `這是台灣中小學考卷${isCrop?'中被框選的一小塊區域':'的一頁'}，要用來報讀給有特教需求的學生聽。${dirHint}
 請找出圖中要唸的文字，嚴格依照正確閱讀順序輸出：
